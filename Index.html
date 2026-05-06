@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Office Tiffin Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Poppins:wght@600;700&display=swap" rel="stylesheet"/>
+<style>
+/* ── PASTE YOUR APPS SCRIPT URL BELOW ── */
+/* Find: const API_URL = "PASTE_YOUR_URL_HERE"; in the script section */
+
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --p:#1E3A5F;--a:#2E86AB;--gold:#F0A500;--g:#27AE60;--r:#E74C3C;
+  --bg:#F0F4F8;--card:#fff;--border:#E2E8F0;--muted:#6B7280;
+  --text:#1A202C;--radius:14px;--font:'Nunito',sans-serif
+}
+html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--text)}
+.page{display:none;min-height:100vh}
+.page.on{display:block}
+
+/* ── LOGIN ── */
+#pgLogin{
+  background:linear-gradient(160deg,#1E3A5F 0%,#2E86AB 100%);
+  display:flex;align-items:center;justify-content:center;
+  padding:2rem;min-height:100vh
+}
+.lcard{
+  background:#fff;border-radius:24px;padding:2.5rem 2rem;
+  width:100%;max-width:380px;text-align:center;
+  box-shadow:0 24px 64px rgba(0,0,0,.25)
+}
+.llogo{
+  width:76px;height:76px;background:linear-gradient(135deg,#1E3A5F,#2E86AB);
+  border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:34px;margin:0 auto 1rem
+}
+.lcard h1{font-family:'Poppins',sans-serif;font-size:1.5rem;color:#1E3A5F;margin-bottom:.2rem}
+.lcard p{font-size:.82rem;color:#6B7280;margin-bottom:1.5rem}
+.fg{margin-bottom:.9rem;text-align:left}
+.fg label{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#374151;display:block;margin-bottom:.35rem}
+.fg select,.fg input{
+  width:100%;padding:.72rem .95rem;border:1.5px solid #E2E8F0;
+  border-radius:10px;font-family:var(--font);font-size:.9rem;
+  outline:none;transition:border .2s;color:#1A202C;background:#fff
+}
+.fg select:focus,.fg input:focus{border-color:#2E86AB}
+.btnPrimary{
+  width:100%;padding:.82rem;background:linear-gradient(135deg,#1E3A5F,#2E86AB);
+  color:#fff;border:none;border-radius:10px;font-family:var(--font);
+  font-size:.95rem;font-weight:800;cursor:pointer;transition:opacity .2s
+}
+.btnPrimary:hover{opacity:.9}
+.lnk{margin-top:.9rem;font-size:.78rem;color:#6B7280}
+.lnk span{color:#2E86AB;cursor:pointer;font-weight:800}
+.errmsg{
+  background:#FEF2F2;border:1px solid #FECACA;color:#991B1B;
+  border-radius:8px;padding:.6rem .9rem;font-size:.8rem;
+  margin-bottom:.75rem;display:none
+}
+
+/* ── TOP BAR ── */
+.topbar{
+  background:linear-gradient(135deg,#1E3A5F,#2E86AB);
+  padding:.85rem 1.1rem;display:flex;align-items:center;
+  justify-content:space-between;position:sticky;top:0;z-index:100
+}
+.tb-left{display:flex;align-items:center;gap:.65rem}
+.av{
+  width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.25);
+  display:flex;align-items:center;justify-content:center;
+  font-weight:900;font-size:.85rem;color:#fff;flex-shrink:0
+}
+.tb-left h2{font-size:.95rem;font-weight:800;color:#fff}
+.tb-left p{font-size:.72rem;color:rgba(255,255,255,.75)}
+.btnGhost{
+  background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);
+  color:#fff;padding:.35rem .75rem;border-radius:8px;
+  font-size:.75rem;font-weight:700;cursor:pointer;font-family:var(--font)
+}
+
+/* ── NAV TABS ── */
+.navtabs{
+  display:flex;background:#fff;border-bottom:1px solid var(--border);
+  overflow-x:auto;position:sticky;top:66px;z-index:99
+}
+.navtab{
+  padding:.65rem 1rem;font-size:.78rem;font-weight:700;color:var(--muted);
+  cursor:pointer;white-space:nowrap;border-bottom:2.5px solid transparent;transition:all .2s
+}
+.navtab.act{color:#1E3A5F;border-bottom-color:#1E3A5F}
+
+/* ── CONTENT ── */
+.content{padding:1rem;background:var(--bg);min-height:calc(100vh - 115px)}
+.card{background:#fff;border-radius:var(--radius);border:1px solid var(--border);padding:1.1rem;margin-bottom:.9rem}
+.card h3{font-size:.9rem;font-weight:800;color:var(--p);margin-bottom:.9rem}
+
+/* ── SYNC BAR ── */
+.syncBar{
+  background:#fff;border:1px solid var(--border);border-radius:10px;
+  padding:.5rem .9rem;margin-bottom:.8rem;display:flex;
+  align-items:center;justify-content:space-between;font-size:.75rem
+}
+.syncSt{display:flex;align-items:center;gap:.4rem;font-weight:700}
+.dot{width:7px;height:7px;border-radius:50%;background:#ccc}
+.dot.ok{background:#27AE60}
+.dot.spin{background:var(--gold);animation:blink 1s infinite}
+.dot.err{background:var(--r)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.sheetLnk{color:#2E86AB;font-weight:800;font-size:.72rem;text-decoration:none}
+
+/* ── STATS ── */
+.statsGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:.65rem;margin-bottom:.9rem}
+.stat{background:#fff;border:1px solid var(--border);border-radius:12px;padding:.8rem .6rem;text-align:center}
+.stat .sv{font-size:1.4rem;font-weight:900;color:var(--p)}
+.stat .sl{font-size:.68rem;color:var(--muted);font-weight:700;margin-top:.15rem}
+
+/* ── HERO CARD ── */
+.heroCard{
+  background:linear-gradient(135deg,#1E3A5F,#2E86AB);
+  border-radius:var(--radius);padding:1.2rem;color:#fff;
+  text-align:center;margin-bottom:.9rem
+}
+.heroCard .hv{font-size:2.2rem;font-weight:900}
+.heroCard .hl{font-size:.8rem;opacity:.8;margin-bottom:.3rem}
+.heroCard .hs{font-size:.73rem;opacity:.65;margin-top:.25rem}
+
+/* ── DATE STRIP ── */
+.dateStrip{
+  background:#fff;border-radius:var(--radius);padding:.9rem 1.1rem;
+  margin-bottom:.9rem;display:flex;align-items:center;
+  justify-content:space-between;border:1px solid var(--border)
+}
+.dateStrip .dv{font-size:1rem;font-weight:800;color:var(--p)}
+.badge{background:#EAF4FB;color:#2E86AB;padding:.25rem .75rem;border-radius:20px;font-size:.78rem;font-weight:800}
+
+/* ── TIFFIN ORDER ── */
+.tifOpts{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.85rem}
+.tifOpt{
+  border:2px solid var(--border);border-radius:12px;padding:1rem;
+  text-align:center;cursor:pointer;transition:all .18s;position:relative;background:#fff
+}
+.tifOpt:hover{border-color:#2E86AB;background:#EAF4FB}
+.tifOpt.sel{border-color:#1E3A5F;background:#EAF4FB}
+.tifOpt.sel::after{content:'✓';position:absolute;top:7px;right:9px;font-size:.75rem;color:#1E3A5F;font-weight:900}
+.tifIcon{font-size:2rem;display:block;margin-bottom:.4rem}
+.tifName{font-size:.9rem;font-weight:800;color:var(--text)}
+.tifPrice{font-size:1.1rem;font-weight:900;color:var(--a);margin-top:.15rem}
+.tifDesc{font-size:.7rem;color:var(--muted);margin-top:.1rem}
+
+.qtyRow{display:flex;align-items:center;gap:.75rem;margin-bottom:.85rem}
+.qtyRow label{font-size:.82rem;font-weight:800;color:#374151}
+.qtyCtrl{display:flex;align-items:center;gap:.5rem;background:#F8FAFC;border-radius:9px;padding:.32rem .7rem}
+.qBtn{width:28px;height:28px;border:none;border-radius:6px;background:#1E3A5F;color:#fff;font-size:1.1rem;cursor:pointer;font-weight:900;line-height:1;font-family:var(--font)}
+.qNum{font-size:.95rem;font-weight:900;min-width:22px;text-align:center;color:var(--p)}
+
+.totalRow{
+  background:linear-gradient(135deg,#1E3A5F,#2E86AB);border-radius:10px;
+  padding:.82rem 1rem;display:flex;align-items:center;
+  justify-content:space-between;margin-bottom:.82rem
+}
+.totalRow span{font-size:.82rem;color:rgba(255,255,255,.8);font-weight:700}
+.totalAmt{font-size:1.3rem;font-weight:900;color:#fff}
+.btnOrder{
+  width:100%;padding:.82rem;background:var(--gold);color:#fff;
+  border:none;border-radius:10px;font-family:var(--font);
+  font-size:.95rem;font-weight:900;cursor:pointer;transition:opacity .2s
+}
+.btnOrder:hover{opacity:.9}
+.btnOrder:disabled{background:#ccc;cursor:not-allowed;opacity:1}
+
+/* ── HISTORY ── */
+.tblWrap{overflow-x:auto;border-radius:var(--radius);border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:.8rem}
+th{background:#F8FAFC;padding:.6rem .75rem;text-align:left;font-weight:800;color:var(--muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border)}
+td{padding:.62rem .75rem;border-bottom:1px solid #F1F5F9;font-weight:500}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#F8FAFC}
+.pill{display:inline-block;padding:.18rem .55rem;border-radius:20px;font-size:.68rem;font-weight:800}
+.pFull{background:#EAF4FB;color:#0C447C}
+.pHalf{background:#FFF9C4;color:#633806}
+.pNone{background:#F1F5F9;color:#5F5E5A}
+.pAdmin{background:#F3E8FF;color:#5B21B6}
+.pEmp{background:#DCFCE7;color:#166534}
+
+/* ── BAR CHART ── */
+.barRow{display:flex;align-items:center;gap:.6rem;margin-bottom:.5rem}
+.barLabel{font-size:.75rem;font-weight:700;color:var(--text);width:85px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.barTrack{flex:1;height:18px;background:#F1F5F9;border-radius:4px;overflow:hidden}
+.barFill{height:100%;border-radius:4px;transition:width .6s cubic-bezier(.25,.46,.45,.94)}
+.barVal{font-size:.75rem;font-weight:800;color:var(--p);min-width:42px;text-align:right}
+
+/* ── ADMIN ── */
+.adminStats{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.9rem}
+.astat{background:#fff;border-radius:12px;padding:1rem;border:1px solid var(--border);text-align:center}
+.astat .av2{font-size:1.5rem;font-weight:900;color:var(--p)}
+.astat .al{font-size:.72rem;color:var(--muted);font-weight:700;margin-top:.2rem}
+
+/* ── EMPLOYEE MANAGER ── */
+.empRow{display:flex;align-items:center;gap:.6rem;padding:.65rem .75rem;border-bottom:1px solid #F1F5F9;background:#fff}
+.empRow:last-child{border-bottom:none}
+.empAv{width:36px;height:36px;border-radius:50%;background:#EAF4FB;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.8rem;color:#1E3A5F;flex-shrink:0}
+.empName{flex:1;font-size:.88rem;font-weight:700}
+.btnIcon{width:30px;height:30px;border:1px solid var(--border);border-radius:8px;background:#fff;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
+.btnIcon:hover{background:#F8FAFC}
+.btnIcon.del:hover{background:#FEF2F2;border-color:#FECACA}
+.addForm{display:none;background:#F8FAFC;border-top:1px solid var(--border);padding:.9rem}
+.addForm.vis{display:block}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-bottom:.6rem}
+.inp{width:100%;padding:.6rem .8rem;border:1.5px solid var(--border);border-radius:9px;font-family:var(--font);font-size:.85rem;outline:none;color:var(--text);background:#fff}
+.inp:focus{border-color:#2E86AB}
+.btnSm{padding:.55rem 1rem;border-radius:8px;font-family:var(--font);font-size:.8rem;font-weight:800;cursor:pointer;border:none}
+.btnAdd2{background:#1E3A5F;color:#fff}
+.btnCnl{background:#F1F5F9;color:var(--muted)}
+
+/* ── REPORT ── */
+.repBox{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:1.1rem;margin-bottom:.9rem}
+.repBox h4{font-size:.78rem;font-weight:900;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:.7rem}
+.repRow{display:flex;justify-content:space-between;padding:.42rem 0;border-bottom:1px solid #F1F5F9;font-size:.82rem}
+.repRow:last-child{border-bottom:none}
+.repRow .rn{font-weight:600;color:var(--text)}
+.repRow .rv{font-weight:900;color:var(--p)}
+.btnRep{padding:.65rem 1.1rem;background:#1E3A5F;color:#fff;border:none;border-radius:9px;font-family:var(--font);font-size:.82rem;font-weight:800;cursor:pointer;margin-right:.5rem;margin-bottom:.5rem}
+.btnRep.green{background:#27AE60}
+.btnRep.blue{background:#2E86AB}
+
+/* ── MODAL ── */
+.modalBg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;align-items:center;justify-content:center;padding:1rem}
+.modalBg.vis{display:flex}
+.modal{background:#fff;border-radius:18px;padding:1.5rem;width:100%;max-width:340px}
+.modal h3{font-size:1rem;font-weight:800;color:var(--p);margin-bottom:.85rem}
+.modal .fg{margin-bottom:.75rem}
+.modalBtns{display:flex;gap:.5rem;margin-top:1rem}
+.btnDanger{flex:1;padding:.65rem;background:#E74C3C;color:#fff;border:none;border-radius:9px;font-family:var(--font);font-weight:800;cursor:pointer;font-size:.85rem}
+.btnSecondary{flex:1;padding:.65rem;background:#F1F5F9;color:var(--muted);border:none;border-radius:9px;font-family:var(--font);font-weight:800;cursor:pointer;font-size:.85rem}
+
+/* ── TOAST ── */
+.toast{
+  position:fixed;bottom:1.2rem;left:1rem;right:1rem;
+  background:#1E3A5F;color:#fff;padding:.8rem 1rem;
+  border-radius:12px;font-size:.88rem;font-weight:700;
+  z-index:9999;text-align:center;display:none
+}
+.toast.on{display:block;animation:slideUp .3s ease}
+@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+/* ── EMPTY STATE ── */
+.empty{text-align:center;color:var(--muted);font-size:.85rem;padding:1.5rem 0}
+
+/* ── SECTION TITLE ── */
+.secTitle{font-size:.78rem;font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:.6rem}
+
+@media(max-width:380px){
+  .statsGrid{grid-template-columns:repeat(3,1fr)}
+  .tifPrice{font-size:.95rem}
+}
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<!-- DELETE MODAL -->
+<div class="modalBg" id="delModal">
+  <div class="modal">
+    <h3>Remove employee?</h3>
+    <p style="font-size:.84rem;color:var(--muted);margin-bottom:.5rem">Remove <strong id="delName"></strong> from the dashboard. Their orders in Google Sheet remain.</p>
+    <div class="modalBtns">
+      <button class="btnSecondary" onclick="closeModal()">Cancel</button>
+      <button class="btnDanger" onclick="confirmDelete()">Remove</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="modalBg" id="editModal">
+  <div class="modal">
+    <h3>Edit employee</h3>
+    <div class="fg"><label style="font-size:.72rem;font-weight:800;text-transform:uppercase;color:#374151;display:block;margin-bottom:.35rem">Full Name</label><input class="inp" id="editName"/></div>
+    <div class="fg"><label style="font-size:.72rem;font-weight:800;text-transform:uppercase;color:#374151;display:block;margin-bottom:.35rem">PIN (4 digits)</label><input class="inp" id="editPin" type="password" maxlength="4"/></div>
+    <div class="fg"><label style="font-size:.72rem;font-weight:800;text-transform:uppercase;color:#374151;display:block;margin-bottom:.35rem">Role</label>
+      <select class="inp" id="editRole"><option value="employee">Employee</option><option value="admin">Admin</option></select>
+    </div>
+    <div class="modalBtns">
+      <button class="btnSecondary" onclick="closeModal()">Cancel</button>
+      <button class="btnDanger" style="background:#1E3A5F" onclick="confirmEdit()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ LOGIN ═══════════ -->
+<div class="page on" id="pgLogin">
+  <div class="lcard">
+    <div class="llogo">🍱</div>
+    <h1>Tiffin Tracker</h1>
+    <p>Office Meal System — Live Google Sheet Sync</p>
+    <div class="errmsg" id="errMsg"></div>
+    <div class="fg">
+      <label>Select Your Name</label>
+      <select id="empSel"><option value="">-- Choose your name --</option></select>
+    </div>
+    <div class="fg">
+      <label>PIN</label>
+      <input type="password" id="pinIn" placeholder="4-digit PIN" maxlength="4" onkeydown="if(event.key==='Enter')doLogin()"/>
+    </div>
+    <button class="btnPrimary" onclick="doLogin()">Login →</button>
+    <div class="lnk">Admin? <span onclick="goAdmin()">Admin Panel</span></div>
+  </div>
+</div>
+
+<!-- ═══════════ EMPLOYEE DASHBOARD ═══════════ -->
+<div class="page" id="pgEmp">
+  <div class="topbar">
+    <div class="tb-left">
+      <div class="av" id="empAv">RS</div>
+      <div><h2 id="empGreet">Good morning!</h2><p>May 2026 · Office Tiffin</p></div>
+    </div>
+    <button class="btnGhost" onclick="logout()">Logout</button>
+  </div>
+  <div class="navtabs">
+    <div class="navtab act" onclick="empTab(this,'tOrder')">Order</div>
+    <div class="navtab" onclick="empTab(this,'tHistory')">My History</div>
+    <div class="navtab" onclick="empTab(this,'tSummary')">My Summary</div>
+  </div>
+  <div class="content">
+
+    <!-- ORDER -->
+    <div id="tOrder">
+      <div class="syncBar">
+        <div class="syncSt"><div class="dot" id="eDot"></div><span id="eSyncTxt">Connecting...</span></div>
+        <a class="sheetLnk" id="sheetLink" href="#" target="_blank">📊 Open Google Sheet</a>
+      </div>
+      <div class="dateStrip">
+        <div>
+          <div style="font-size:.8rem;color:var(--muted);font-weight:600">Today</div>
+          <div class="dv" id="todayDate">-</div>
+        </div>
+        <div class="badge" id="todayDay">-</div>
+      </div>
+      <div class="card">
+        <h3>🥘 Place Today's Order</h3>
+        <div class="tifOpts">
+          <div class="tifOpt" id="optFull" onclick="pickTif('full')">
+            <span class="tifIcon">🍛</span>
+            <div class="tifName">Full Tiffin</div>
+            <div class="tifPrice">₹80</div>
+            <div class="tifDesc">Dal · Sabzi · Rice · Roti</div>
+          </div>
+          <div class="tifOpt" id="optHalf" onclick="pickTif('half')">
+            <span class="tifIcon">🥘</span>
+            <div class="tifName">Half Tiffin</div>
+            <div class="tifPrice">₹50</div>
+            <div class="tifDesc">Dal · Rice or Roti</div>
+          </div>
+        </div>
+        <div class="qtyRow">
+          <label>Quantity</label>
+          <div class="qtyCtrl">
+            <button class="qBtn" onclick="chgQty(-1)">−</button>
+            <div class="qNum" id="qNum">1</div>
+            <button class="qBtn" onclick="chgQty(1)">+</button>
+          </div>
+        </div>
+        <div class="totalRow">
+          <span>Order Total</span>
+          <div class="totalAmt" id="oTotal">₹0</div>
+        </div>
+        <button class="btnOrder" id="oBtn" onclick="placeOrder()" disabled>Select tiffin type</button>
+      </div>
+    </div>
+
+    <!-- HISTORY -->
+    <div id="tHistory" style="display:none">
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="padding:.9rem 1.1rem .5rem"><h3>My order history</h3></div>
+        <div class="tblWrap"><table>
+          <thead><tr><th>Date</th><th>Type</th><th>Qty</th><th>Amount</th><th>Time</th></tr></thead>
+          <tbody id="empHistTbl"><tr><td colspan="5" class="empty">Loading...</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- SUMMARY -->
+    <div id="tSummary" style="display:none">
+      <div class="statsGrid" id="empStats">
+        <div class="stat"><div class="sv">-</div><div class="sl">Days ordered</div></div>
+        <div class="stat"><div class="sv">-</div><div class="sl">Full tiffins</div></div>
+        <div class="stat"><div class="sv">-</div><div class="sl">Half tiffins</div></div>
+      </div>
+      <div class="heroCard">
+        <div class="hl">My monthly total</div>
+        <div class="hv" id="empMonthAmt">₹0</div>
+        <div class="hs">Live from Google Sheet</div>
+      </div>
+      <div class="card">
+        <h3>Tiffin breakdown</h3>
+        <div id="empBarChart"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════ ADMIN DASHBOARD ═══════════ -->
+<div class="page" id="pgAdmin">
+  <div class="topbar">
+    <div class="tb-left">
+      <div class="av" style="background:rgba(255,255,255,.3);font-size:11px">ADM</div>
+      <div><h2>Admin Panel</h2><p>Full Control · May 2026</p></div>
+    </div>
+    <button class="btnGhost" onclick="logout()">Logout</button>
+  </div>
+  <div class="navtabs">
+    <div class="navtab act" onclick="adminTab(this,'aToday')">Today</div>
+    <div class="navtab" onclick="adminTab(this,'aEmployees')">Employees</div>
+    <div class="navtab" onclick="adminTab(this,'aMonthly')">Monthly</div>
+    <div class="navtab" onclick="adminTab(this,'aReport')">Report</div>
+  </div>
+  <div class="content">
+
+    <!-- TODAY -->
+    <div id="aToday">
+      <div class="syncBar">
+        <div class="syncSt"><div class="dot" id="aDot"></div><span id="aSyncTxt">Loading...</span></div>
+        <div style="display:flex;gap:.5rem;align-items:center">
+          <button onclick="refreshAdmin()" style="padding:.35rem .75rem;background:#EAF4FB;color:#1E3A5F;border:0.5px solid #B5D4F4;border-radius:8px;font-size:.72rem;font-weight:800;cursor:pointer;font-family:var(--font)">↻ Refresh</button>
+          <a class="sheetLnk" id="adminSheetLink" href="#" target="_blank">📊 Sheet</a>
+        </div>
+      </div>
+      <div class="adminStats" id="todayStats">
+        <div class="astat"><div class="av2">-</div><div class="al">Orders today</div></div>
+        <div class="astat"><div class="av2">-</div><div class="al">Today's revenue</div></div>
+        <div class="astat"><div class="av2">-</div><div class="al">Full tiffins</div></div>
+        <div class="astat"><div class="av2">-</div><div class="al">Half tiffins</div></div>
+      </div>
+      <div class="secTitle">Today's orders — all employees</div>
+      <div class="tblWrap" style="background:#fff;border-radius:var(--radius);margin-bottom:.9rem"><table>
+        <thead><tr><th>Employee</th><th>Type</th><th>Qty</th><th>Amount</th><th>Time</th></tr></thead>
+        <tbody id="todayTbl"><tr><td colspan="5" class="empty">Loading...</td></tr></tbody>
+      </table></div>
+    </div>
+
+    <!-- EMPLOYEES -->
+    <div id="aEmployees" style="display:none">
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="padding:.9rem 1.1rem .6rem;display:flex;justify-content:space-between;align-items:center">
+          <h3 style="margin:0">Employee management</h3>
+          <button onclick="toggleAddForm()" style="padding:.4rem .85rem;background:#1E3A5F;color:#fff;border:none;border-radius:8px;font-family:var(--font);font-size:.78rem;font-weight:800;cursor:pointer">+ Add</button>
+        </div>
+        <div class="addForm" id="addEmpForm">
+          <div class="row2">
+            <div>
+              <label style="font-size:.72rem;font-weight:800;text-transform:uppercase;color:#374151;display:block;margin-bottom:.3rem">Full Name</label>
+              <input class="inp" id="newName" placeholder="Employee name"/>
+            </div>
+            <div>
+              <label style="font-size:.72rem;font-weight:800;text-transform:uppercase;color:#374151;display:block;margin-bottom:.3rem">PIN</label>
+              <input class="inp" id="newPin" type="password" placeholder="4-digit PIN" maxlength="4"/>
+            </div>
+          </div>
+          <div style="margin-bottom:.6rem">
+            <label style="font-size:.72rem;font-weight:800;text-transform:uppercase;color:#374151;display:block;margin-bottom:.3rem">Role</label>
+            <select class="inp" id="newRole"><option value="employee">Employee</option><option value="admin">Admin</option></select>
+          </div>
+          <div style="display:flex;gap:.5rem">
+            <button class="btnSm btnAdd2" onclick="addEmployee()">Add Employee</button>
+            <button class="btnSm btnCnl" onclick="toggleAddForm()">Cancel</button>
+          </div>
+        </div>
+        <div id="empList"></div>
+      </div>
+    </div>
+
+    <!-- MONTHLY -->
+    <div id="aMonthly" style="display:none">
+      <div class="heroCard">
+        <div class="hl">Total monthly revenue</div>
+        <div class="hv" id="monthTotal">₹0</div>
+        <div class="hs" id="monthSub">0 orders · 0 employees</div>
+      </div>
+      <div class="adminStats" id="monthStats">
+        <div class="astat"><div class="av2">-</div><div class="al">Total orders</div></div>
+        <div class="astat"><div class="av2">-</div><div class="al">Revenue</div></div>
+        <div class="astat"><div class="av2">-</div><div class="al">Full tiffins</div></div>
+        <div class="astat"><div class="av2">-</div><div class="al">Half tiffins</div></div>
+      </div>
+      <div class="card">
+        <h3>Employee-wise spending</h3>
+        <div id="empBreakChart"></div>
+      </div>
+      <div class="secTitle">All orders this month</div>
+      <div class="tblWrap" style="background:#fff;border-radius:var(--radius)"><table>
+        <thead><tr><th>Date</th><th>Employee</th><th>Type</th><th>Qty</th><th>Amount</th></tr></thead>
+        <tbody id="monthTbl"><tr><td colspan="5" class="empty">Loading...</td></tr></tbody>
+      </table></div>
+    </div>
+
+    <!-- REPORT -->
+    <div id="aReport" style="display:none">
+      <div style="margin-bottom:.9rem;display:flex;flex-wrap:wrap;gap:.5rem">
+        <button class="btnRep" onclick="printReport()">🖨 Print</button>
+        <button class="btnRep green" onclick="exportCSV()">⬇ Export CSV</button>
+        <button class="btnRep blue" onclick="copyReport()">📋 Copy Summary</button>
+      </div>
+      <div class="repBox">
+        <h4>Office Tiffin Report — May 2026</h4>
+        <div class="repRow"><span class="rn">Generated on</span><span class="rv" id="rDate">-</span></div>
+        <div class="repRow"><span class="rn">Total orders</span><span class="rv" id="rOrders">0</span></div>
+        <div class="repRow"><span class="rn">Total revenue</span><span class="rv" id="rRev">₹0</span></div>
+        <div class="repRow"><span class="rn">Full tiffins ordered</span><span class="rv" id="rFull">0</span></div>
+        <div class="repRow"><span class="rn">Half tiffins ordered</span><span class="rv" id="rHalf">0</span></div>
+        <div class="repRow"><span class="rn">Average revenue per day</span><span class="rv" id="rAvg">₹0</span></div>
+      </div>
+      <div class="repBox">
+        <h4>Employee-wise summary</h4>
+        <div id="rEmpBreak"></div>
+      </div>
+      <div class="repBox">
+        <h4>Daily totals</h4>
+        <div id="rDaily"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════════════
+   ⬇ STEP 1: PASTE YOUR APPS SCRIPT URL HERE
+   ════════════════════════════════════════════ */
+const API_URL = "https://script.google.com/macros/s/AKfycbzgCLISy0qQeZI03HozXNL7PdDrW76EIvQDO3TNEnMGOVfst5XSuFflrRo4ayA5u0xOzg/exec";
+
+/* ════════════════════════════════════════════
+   ⬇ STEP 2: PASTE YOUR GOOGLE SHEET ID HERE
+   (the long string in the sheet URL between /d/ and /edit)
+   ════════════════════════════════════════════ */
+const SHEET_ID = "AKfycbzgCLISy0qQeZI03HozXNL7PdDrW76EIvQDO3TNEnMGOVfst5XSuFflrRo4ayA5u0xOzg";
+
+/* ════════════════════════════════════════════
+   CONFIGURATION — edit employees and prices below
+   ════════════════════════════════════════════ */
+const PRICES = { full: 80, half: 50 };
+const ADMIN_PIN = "0000"; // Master admin PIN
+
+const DEFAULT_EMPS = [
+  { name: "Rahul Sharma",   pin: "1234", role: "employee" },
+  { name: "Priya Patil",    pin: "1234", role: "employee" },
+  { name: "Amit Desai",     pin: "1234", role: "employee" },
+  { name: "Sneha Joshi",    pin: "1234", role: "employee" },
+  { name: "Vikram Nair",    pin: "1234", role: "employee" },
+  { name: "Neha Kulkarni",  pin: "1234", role: "employee" },
+];
+
+/* ════════════════════════════════════════════
+   APP STATE
+   ════════════════════════════════════════════ */
+let curUser = null, curRole = null;
+let qty = 1, selTif = null;
+let allOrders = [];
+let empEditing = null, empDeleting = null;
+
+/* ════════════════════════════════════════════
+   DATE HELPERS
+   ════════════════════════════════════════════ */
+function getTodayLabel() {
+  const d = new Date();
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-');
+}
+function getTodayDay() {
+  return new Date().toLocaleDateString('en-IN', { weekday: 'long' });
+}
+function isSunday() { return new Date().getDay() === 0; }
+
+/* ════════════════════════════════════════════
+   EMPLOYEE STORAGE
+   ════════════════════════════════════════════ */
+function getEmps() {
+  return JSON.parse(localStorage.getItem('tif_emps') || JSON.stringify(DEFAULT_EMPS));
+}
+function saveEmps(e) { localStorage.setItem('tif_emps', JSON.stringify(e)); }
+function getLocalOrders() { return JSON.parse(localStorage.getItem('tif_orders') || '[]'); }
+function saveLocalOrders(o) { localStorage.setItem('tif_orders', JSON.stringify(o)); }
+
+/* ════════════════════════════════════════════
+   UI HELPERS
+   ════════════════════════════════════════════ */
+function initials(n) { return n.split(' ').map(x => x[0]).join('').toUpperCase().slice(0, 2); }
+function toast(m, d = 2800) {
+  const t = document.getElementById('toast');
+  t.textContent = m; t.classList.add('on');
+  setTimeout(() => t.classList.remove('on'), d);
+}
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => { p.classList.remove('on'); p.style.display = 'none'; });
+  const p = document.getElementById(id);
+  p.style.display = 'block';
+  setTimeout(() => p.classList.add('on'), 10);
+}
+function syncDot(dotId, txtId, state, msg) {
+  const d = document.getElementById(dotId), t = document.getElementById(txtId);
+  if (!d || !t) return;
+  d.className = 'dot ' + (state === 'ok' ? 'ok' : state === 'spin' ? 'spin' : 'err');
+  t.textContent = msg;
+}
+function closeModal() {
+  document.querySelectorAll('.modalBg').forEach(m => m.classList.remove('vis'));
+}
+function populateLogin() {
+  const sel = document.getElementById('empSel');
+  sel.innerHTML = '<option value="">-- Choose your name --</option>';
+  getEmps().forEach(e => {
+    sel.innerHTML += `<option value="${e.name}">${e.name}${e.role === 'admin' ? ' (Admin)' : ''}</option>`;
+  });
+}
+function showErr(msg) {
+  const el = document.getElementById('errMsg');
+  el.textContent = msg; el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 3000);
+}
+function empTab(el, id) {
+  document.querySelectorAll('#pgEmp .navtab').forEach(t => t.classList.remove('act'));
+  el.classList.add('act');
+  ['tOrder', 'tHistory', 'tSummary'].forEach(t => document.getElementById(t).style.display = 'none');
+  document.getElementById(id).style.display = 'block';
+  if (id === 'tHistory' || id === 'tSummary') renderEmpHistory();
+}
+function adminTab(el, id) {
+  document.querySelectorAll('#pgAdmin .navtab').forEach(t => t.classList.remove('act'));
+  el.classList.add('act');
+  ['aToday', 'aEmployees', 'aMonthly', 'aReport'].forEach(t => document.getElementById(t).style.display = 'none');
+  document.getElementById(id).style.display = 'block';
+  if (id === 'aEmployees') renderEmpList();
+  if (id === 'aMonthly') renderMonthly();
+  if (id === 'aReport') renderReport();
+}
+
+/* ════════════════════════════════════════════
+   GOOGLE APPS SCRIPT API
+   ════════════════════════════════════════════ */
+async function readSheet() {
+  if (API_URL === "PASTE_YOUR_APPS_SCRIPT_URL_HERE") {
+    // Return local data if URL not configured
+    return getLocalOrders();
+  }
+  const r = await fetch(API_URL + '?action=read', { method: 'GET' });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const data = await r.json();
+  return Array.isArray(data) ? data : [];
+}
+
+async function appendRow(order) {
+  if (API_URL === "PASTE_YOUR_APPS_SCRIPT_URL_HERE") {
+    // Save locally if URL not configured
+    const local = getLocalOrders();
+    local.push(order);
+    saveLocalOrders(local);
+    return { success: true };
+  }
+  const r = await fetch(API_URL, {
+    method: 'POST',
+    body: JSON.stringify(order),
+    headers: { 'Content-Type': 'application/json' }
+  });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return await r.json();
+}
+
+/* ════════════════════════════════════════════
+   AUTH
+   ════════════════════════════════════════════ */
+function doLogin() {
+  const name = document.getElementById('empSel').value;
+  const pin = document.getElementById('pinIn').value;
+  if (!name) { showErr('Please select your name'); return; }
+  if (pin.length < 4) { showErr('Enter your 4-digit PIN'); return; }
+  const emp = getEmps().find(e => e.name === name);
+  if (!emp || emp.pin !== pin) { showErr('Wrong PIN — please try again'); return; }
+  curUser = name; curRole = emp.role;
+  document.getElementById('pinIn').value = '';
+  if (emp.role === 'admin') { showPage('pgAdmin'); initAdmin(); }
+  else { showPage('pgEmp'); initEmpDash(); }
+}
+function goAdmin() {
+  const p = prompt('Enter Master Admin PIN:');
+  if (p === ADMIN_PIN) { curUser = 'Admin'; curRole = 'admin'; showPage('pgAdmin'); initAdmin(); }
+  else if (p !== null) toast('Wrong admin PIN');
+}
+function logout() {
+  curUser = null; curRole = null; selTif = null; qty = 1; allOrders = [];
+  document.getElementById('empSel').value = '';
+  showPage('pgLogin');
+}
+
+/* ════════════════════════════════════════════
+   EMPLOYEE DASHBOARD
+   ════════════════════════════════════════════ */
+async function initEmpDash() {
+  const first = curUser.split(' ')[0];
+  document.getElementById('empAv').textContent = initials(curUser);
+  document.getElementById('empGreet').textContent = `Good morning, ${first}!`;
+  document.getElementById('todayDate').textContent = getTodayLabel();
+  document.getElementById('todayDay').textContent = getTodayDay();
+  document.getElementById('sheetLink').href = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`;
+  document.getElementById('adminSheetLink').href = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`;
+
+  selTif = null; qty = 1;
+  document.getElementById('qNum').textContent = 1;
+  document.getElementById('optFull').classList.remove('sel');
+  document.getElementById('optHalf').classList.remove('sel');
+  updateOTotal();
+
+  if (isSunday()) {
+    const btn = document.getElementById('oBtn');
+    btn.disabled = true; btn.textContent = 'Office closed — Sunday';
+    btn.style.background = '#ccc';
+  }
+
+  syncDot('eDot', 'eSyncTxt', 'spin', 'Loading from Google Sheet...');
+  try {
+    allOrders = await readSheet();
+    saveLocalOrders(allOrders);
+    syncDot('eDot', 'eSyncTxt', 'ok', 'Synced with Google Sheet ✓');
+  } catch {
+    allOrders = getLocalOrders();
+    syncDot('eDot', 'eSyncTxt', 'err', 'Offline — showing local data');
+  }
+  checkTodayOrder();
+  renderEmpHistory();
+}
+
+function checkTodayOrder() {
+  const already = allOrders.find(o => o.emp === curUser && o.date === getTodayLabel());
+  const btn = document.getElementById('oBtn');
+  if (already) {
+    btn.disabled = true;
+    btn.textContent = `✓ Ordered today — ${already.tiffin} ₹${already.total}`;
+    btn.style.background = '#27AE60';
+    document.getElementById(already.tiffin === 'Full Tiffin' ? 'optFull' : 'optHalf').classList.add('sel');
+  } else if (!isSunday()) {
+    btn.disabled = true; btn.textContent = 'Select tiffin type'; btn.style.background = 'var(--gold)';
+  }
+}
+
+function pickTif(t) {
+  if (allOrders.find(o => o.emp === curUser && o.date === getTodayLabel())) { toast('Already ordered today!'); return; }
+  if (isSunday()) { toast('Office is closed on Sunday'); return; }
+  selTif = t;
+  document.getElementById('optFull').classList.toggle('sel', t === 'full');
+  document.getElementById('optHalf').classList.toggle('sel', t === 'half');
+  const btn = document.getElementById('oBtn');
+  btn.disabled = false;
+  btn.textContent = `Order ${t === 'full' ? 'Full' : 'Half'} Tiffin`;
+  btn.style.background = 'var(--gold)';
+  updateOTotal();
+}
+function chgQty(d) {
+  qty = Math.max(1, Math.min(10, qty + d));
+  document.getElementById('qNum').textContent = qty;
+  updateOTotal();
+}
+function updateOTotal() {
+  document.getElementById('oTotal').textContent = selTif ? `₹${PRICES[selTif] * qty}` : '₹0';
+}
+
+async function placeOrder() {
+  if (!selTif) return;
+  if (allOrders.find(o => o.emp === curUser && o.date === getTodayLabel())) { toast('Already ordered today!'); return; }
+  const btn = document.getElementById('oBtn');
+  btn.disabled = true; btn.textContent = '⏳ Saving to Google Sheet...'; btn.style.background = '#2E86AB';
+  syncDot('eDot', 'eSyncTxt', 'spin', 'Writing order to sheet...');
+
+  const now = new Date();
+  const order = {
+    date: getTodayLabel(),
+    emp: curUser,
+    tiffin: selTif === 'full' ? 'Full Tiffin' : 'Half Tiffin',
+    qty, unitPrice: PRICES[selTif],
+    total: PRICES[selTif] * qty,
+    time: now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+  };
+
+  try {
+    const res = await appendRow(order);
+    if (res.success) {
+      allOrders.push(order);
+      saveLocalOrders(allOrders);
+      btn.textContent = '✓ Saved to Google Sheet!'; btn.style.background = '#27AE60';
+      syncDot('eDot', 'eSyncTxt', 'ok', 'Order saved to Google Sheet ✓');
+      toast(`🍱 Order confirmed! ₹${order.total} saved to sheet`);
+      renderEmpHistory();
+    } else throw new Error(res.error || 'Unknown error');
+  } catch (e) {
+    allOrders.push(order);
+    const local = getLocalOrders(); local.push(order); saveLocalOrders(local);
+    btn.textContent = '✓ Saved locally'; btn.style.background = 'var(--gold)';
+    syncDot('eDot', 'eSyncTxt', 'err', 'Saved locally — sheet sync pending');
+    toast('Order saved locally. Check sheet connection.');
+    renderEmpHistory();
+  }
+}
+
+function renderEmpHistory() {
+  const mine = allOrders.filter(o => o.emp === curUser);
+  const sorted = mine.slice().sort((a, b) => b.date.localeCompare(a.date));
+  const tbl = document.getElementById('empHistTbl');
+  if (!sorted.length) {
+    tbl.innerHTML = '<tr><td colspan="5" class="empty">No orders yet this month</td></tr>';
+  } else {
+    tbl.innerHTML = sorted.map(o => `
+      <tr>
+        <td>${o.date}</td>
+        <td><span class="pill ${o.tiffin === 'Full Tiffin' ? 'pFull' : 'pHalf'}">${o.tiffin}</span></td>
+        <td>${o.qty}</td>
+        <td style="font-weight:800;color:var(--p)">₹${o.total}</td>
+        <td style="color:var(--muted)">${o.time || '—'}</td>
+      </tr>`).join('');
+  }
+  // Update summary stats
+  const tot = mine.reduce((s, o) => s + (Number(o.total) || 0), 0);
+  const full = mine.filter(o => o.tiffin === 'Full Tiffin').reduce((s, o) => s + (Number(o.qty) || 0), 0);
+  const half = mine.filter(o => o.tiffin === 'Half Tiffin').reduce((s, o) => s + (Number(o.qty) || 0), 0);
+  document.getElementById('empStats').innerHTML = `
+    <div class="stat"><div class="sv">${mine.length}</div><div class="sl">Days ordered</div></div>
+    <div class="stat"><div class="sv">${full}</div><div class="sl">Full tiffins</div></div>
+    <div class="stat"><div class="sv">${half}</div><div class="sl">Half tiffins</div></div>`;
+  document.getElementById('empMonthAmt').textContent = `₹${tot}`;
+  const maxV = Math.max(full * 80, half * 50, 1);
+  document.getElementById('empBarChart').innerHTML = `
+    <div class="barRow"><div class="barLabel">Full Tiffin</div><div class="barTrack"><div class="barFill" style="width:${Math.round(full*80/maxV*100)}%;background:#2E86AB"></div></div><div class="barVal">₹${full * 80}</div></div>
+    <div class="barRow"><div class="barLabel">Half Tiffin</div><div class="barTrack"><div class="barFill" style="width:${Math.round(half*50/maxV*100)}%;background:#F0A500"></div></div><div class="barVal">₹${half * 50}</div></div>`;
+}
+
+/* ════════════════════════════════════════════
+   ADMIN DASHBOARD
+   ════════════════════════════════════════════ */
+async function initAdmin() {
+  document.getElementById('adminSheetLink').href = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`;
+  syncDot('aDot', 'aSyncTxt', 'spin', 'Loading from Google Sheet...');
+  try {
+    allOrders = await readSheet();
+    saveLocalOrders(allOrders);
+    syncDot('aDot', 'aSyncTxt', 'ok', 'Live data from Google Sheet ✓');
+  } catch {
+    allOrders = getLocalOrders();
+    syncDot('aDot', 'aSyncTxt', 'err', 'Local data — sheet unavailable');
+  }
+  renderToday();
+}
+
+async function refreshAdmin() {
+  syncDot('aDot', 'aSyncTxt', 'spin', 'Refreshing...');
+  try {
+    allOrders = await readSheet();
+    saveLocalOrders(allOrders);
+    syncDot('aDot', 'aSyncTxt', 'ok', 'Refreshed ✓');
+  } catch {
+    syncDot('aDot', 'aSyncTxt', 'err', 'Refresh failed');
+  }
+  renderToday();
+  toast('Data refreshed from Google Sheet');
+}
+
+function renderToday() {
+  const today = getTodayLabel();
+  const todayOrders = allOrders.filter(o => o.date === today);
+  const rev = todayOrders.reduce((s, o) => s + (Number(o.total) || 0), 0);
+  const full = todayOrders.filter(o => o.tiffin === 'Full Tiffin').reduce((s, o) => s + (Number(o.qty) || 0), 0);
+  const half = todayOrders.filter(o => o.tiffin === 'Half Tiffin').reduce((s, o) => s + (Number(o.qty) || 0), 0);
+  document.getElementById('todayStats').innerHTML = `
+    <div class="astat"><div class="av2">${todayOrders.length}</div><div class="al">Orders today</div></div>
+    <div class="astat"><div class="av2">₹${rev}</div><div class="al">Today's revenue</div></div>
+    <div class="astat"><div class="av2">${full}</div><div class="al">Full tiffins</div></div>
+    <div class="astat"><div class="av2">${half}</div><div class="al">Half tiffins</div></div>`;
+  const emps = getEmps();
+  document.getElementById('todayTbl').innerHTML = emps.map(e => {
+    const o = todayOrders.find(x => x.emp === e.name);
+    if (o) return `<tr><td>${e.name}</td><td><span class="pill ${o.tiffin === 'Full Tiffin' ? 'pFull' : 'pHalf'}">${o.tiffin}</span></td><td>${o.qty}</td><td style="font-weight:800;color:var(--p)">₹${o.total}</td><td style="color:var(--muted)">${o.time || '—'}</td></tr>`;
+    return `<tr><td>${e.name}</td><td><span class="pill pNone">No order</span></td><td>—</td><td>—</td><td>—</td></tr>`;
+  }).join('') || '<tr><td colspan="5" class="empty">No employees added yet</td></tr>';
+}
+
+/* ════════════════════════════════════════════
+   EMPLOYEE MANAGEMENT
+   ════════════════════════════════════════════ */
+function renderEmpList() {
+  const emps = getEmps();
+  const el = document.getElementById('empList');
+  if (!emps.length) { el.innerHTML = '<div class="empty" style="padding:1rem">No employees yet. Add one above.</div>'; return; }
+  el.innerHTML = emps.map((e, i) => `
+    <div class="empRow">
+      <div class="empAv">${initials(e.name)}</div>
+      <div style="flex:1">
+        <div class="empName">${e.name}</div>
+        <div style="font-size:.7rem;margin-top:.1rem"><span class="pill ${e.role === 'admin' ? 'pAdmin' : 'pEmp'}">${e.role}</span></div>
+      </div>
+      <button class="btnIcon" onclick="openEdit(${i})" title="Edit">✏️</button>
+      <button class="btnIcon del" onclick="openDelete(${i})" title="Delete">🗑</button>
+    </div>`).join('');
+}
+function toggleAddForm() { document.getElementById('addEmpForm').classList.toggle('vis'); }
+function addEmployee() {
+  const name = document.getElementById('newName').value.trim();
+  const pin = document.getElementById('newPin').value;
+  const role = document.getElementById('newRole').value;
+  if (!name) { toast('Enter employee name'); return; }
+  if (pin.length < 4) { toast('PIN must be 4 digits'); return; }
+  const emps = getEmps();
+  if (emps.find(e => e.name.toLowerCase() === name.toLowerCase())) { toast('Employee already exists'); return; }
+  emps.push({ name, pin, role }); saveEmps(emps);
+  document.getElementById('newName').value = ''; document.getElementById('newPin').value = '';
+  toggleAddForm(); populateLogin(); renderEmpList();
+  toast(`${name} added successfully ✓`);
+}
+function openEdit(i) {
+  empEditing = i;
+  const e = getEmps()[i];
+  document.getElementById('editName').value = e.name;
+  document.getElementById('editPin').value = e.pin;
+  document.getElementById('editRole').value = e.role;
+  document.getElementById('editModal').classList.add('vis');
+}
+function confirmEdit() {
+  const name = document.getElementById('editName').value.trim();
+  const pin = document.getElementById('editPin').value;
+  const role = document.getElementById('editRole').value;
+  if (!name || pin.length < 4) { toast('Fill all fields'); return; }
+  const emps = getEmps(); emps[empEditing] = { name, pin, role }; saveEmps(emps);
+  closeModal(); populateLogin(); renderEmpList(); toast('Employee updated ✓');
+}
+function openDelete(i) {
+  empDeleting = i;
+  document.getElementById('delName').textContent = getEmps()[i].name;
+  document.getElementById('delModal').classList.add('vis');
+}
+function confirmDelete() {
+  const emps = getEmps(); emps.splice(empDeleting, 1); saveEmps(emps);
+  closeModal(); populateLogin(); renderEmpList(); toast('Employee removed');
+}
+
+/* ════════════════════════════════════════════
+   MONTHLY
+   ════════════════════════════════════════════ */
+function renderMonthly() {
+  const tot = allOrders.reduce((s, o) => s + (Number(o.total) || 0), 0);
+  const full = allOrders.filter(o => o.tiffin === 'Full Tiffin').reduce((s, o) => s + (Number(o.qty) || 0), 0);
+  const half = allOrders.filter(o => o.tiffin === 'Half Tiffin').reduce((s, o) => s + (Number(o.qty) || 0), 0);
+  const uEmps = [...new Set(allOrders.map(o => o.emp))];
+  document.getElementById('monthTotal').textContent = `₹${tot}`;
+  document.getElementById('monthSub').textContent = `${allOrders.length} orders · ${uEmps.length} employees`;
+  document.getElementById('monthStats').innerHTML = `
+    <div class="astat"><div class="av2">${allOrders.length}</div><div class="al">Total orders</div></div>
+    <div class="astat"><div class="av2">₹${tot}</div><div class="al">Revenue</div></div>
+    <div class="astat"><div class="av2">${full}</div><div class="al">Full tiffins</div></div>
+    <div class="astat"><div class="av2">${half}</div><div class="al">Half tiffins</div></div>`;
+  // Bar chart
+  const empTots = getEmps().map(e => {
+    const mine = allOrders.filter(o => o.emp === e.name);
+    return { name: e.name.split(' ')[0], val: mine.reduce((s, o) => s + (Number(o.total) || 0), 0) };
+  }).filter(e => e.val > 0).sort((a, b) => b.val - a.val);
+  const maxV = Math.max(...empTots.map(e => e.val), 1);
+  document.getElementById('empBreakChart').innerHTML = empTots.map(e => `
+    <div class="barRow">
+      <div class="barLabel">${e.name}</div>
+      <div class="barTrack"><div class="barFill" style="width:${Math.round(e.val / maxV * 100)}%;background:#2E86AB"></div></div>
+      <div class="barVal">₹${e.val}</div>
+    </div>`).join('') || '<div class="empty">No orders yet</div>';
+  // Full table
+  const sorted = allOrders.slice().sort((a, b) => b.date.localeCompare(a.date));
+  document.getElementById('monthTbl').innerHTML = sorted.map(o => `
+    <tr>
+      <td>${o.date}</td>
+      <td>${o.emp}</td>
+      <td><span class="pill ${o.tiffin === 'Full Tiffin' ? 'pFull' : 'pHalf'}">${o.tiffin}</span></td>
+      <td>${o.qty}</td>
+      <td style="font-weight:800;color:var(--p)">₹${o.total}</td>
+    </tr>`).join('') || '<tr><td colspan="5" class="empty">No orders yet</td></tr>';
+}
+
+/* ════════════════════════════════════════════
+   REPORT
+   ════════════════════════════════════════════ */
+function renderReport() {
+  const tot = allOrders.reduce((s, o) => s + (Number(o.total) || 0), 0);
+  const full = allOrders.filter(o => o.tiffin === 'Full Tiffin').reduce((s, o) => s + (Number(o.qty) || 0), 0);
+  const half = allOrders.filter(o => o.tiffin === 'Half Tiffin').reduce((s, o) => s + (Number(o.qty) || 0), 0);
+  const days = [...new Set(allOrders.map(o => o.date))].length;
+  document.getElementById('rDate').textContent = getTodayLabel();
+  document.getElementById('rOrders').textContent = allOrders.length;
+  document.getElementById('rRev').textContent = `₹${tot}`;
+  document.getElementById('rFull').textContent = full;
+  document.getElementById('rHalf').textContent = half;
+  document.getElementById('rAvg').textContent = days ? `₹${Math.round(tot / days)}` : '₹0';
+  const empBreak = getEmps().map(e => {
+    const mine = allOrders.filter(o => o.emp === e.name);
+    return { name: e.name, orders: mine.length, total: mine.reduce((s, o) => s + (Number(o.total) || 0), 0) };
+  }).filter(e => e.orders > 0);
+  document.getElementById('rEmpBreak').innerHTML = empBreak.map(e =>
+    `<div class="repRow"><span class="rn">${e.name}</span><span class="rv">${e.orders} orders · ₹${e.total}</span></div>`
+  ).join('') || '<div class="empty">No orders yet</div>';
+  const byDay = {};
+  allOrders.forEach(o => { byDay[o.date] = (byDay[o.date] || 0) + (Number(o.total) || 0); });
+  document.getElementById('rDaily').innerHTML = Object.entries(byDay).sort((a, b) => b[0].localeCompare(a[0])).map(([d, v]) =>
+    `<div class="repRow"><span class="rn">${d}</span><span class="rv">₹${v}</span></div>`
+  ).join('') || '<div class="empty">No orders yet</div>';
+}
+
+function printReport() {
+  renderReport();
+  const w = window.open('', '_blank');
+  const tot = allOrders.reduce((s, o) => s + (Number(o.total) || 0), 0);
+  const full = allOrders.filter(o => o.tiffin === 'Full Tiffin').reduce((s, o) => s + (Number(o.qty) || 0), 0);
+  const half = allOrders.filter(o => o.tiffin === 'Half Tiffin').reduce((s, o) => s + (Number(o.qty) || 0), 0);
+  const days = [...new Set(allOrders.map(o => o.date))].length;
+  const empBreak = getEmps().map(e => {
+    const mine = allOrders.filter(o => o.emp === e.name);
+    return { name: e.name, orders: mine.length, total: mine.reduce((s, o) => s + (Number(o.total) || 0), 0) };
+  }).filter(e => e.orders > 0);
+  const byDay = {};
+  allOrders.forEach(o => { byDay[o.date] = (byDay[o.date] || 0) + (Number(o.total) || 0); });
+  w.document.write(`<!DOCTYPE html><html><head><title>Tiffin Report</title>
+  <style>
+    body{font-family:Arial,sans-serif;padding:24px;color:#1a1a2e;font-size:13px}
+    h1{color:#1E3A5F;border-bottom:2px solid #1E3A5F;padding-bottom:8px}
+    h2{color:#2E86AB;font-size:13px;text-transform:uppercase;letter-spacing:.05em;margin-top:20px}
+    .row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #eee}
+    .val{font-weight:bold;color:#1E3A5F}
+    @media print{body{padding:0}}
+  </style></head><body>
+  <h1>Office Tiffin Report — May 2026</h1>
+  <h2>Summary</h2>
+  <div class="row"><span>Generated on</span><span class="val">${getTodayLabel()}</span></div>
+  <div class="row"><span>Total orders</span><span class="val">${allOrders.length}</span></div>
+  <div class="row"><span>Total revenue</span><span class="val">₹${tot}</span></div>
+  <div class="row"><span>Full tiffins</span><span class="val">${full}</span></div>
+  <div class="row"><span>Half tiffins</span><span class="val">${half}</span></div>
+  <div class="row"><span>Avg per day</span><span class="val">${days ? '₹' + Math.round(tot / days) : '₹0'}</span></div>
+  <h2>Employee-wise</h2>
+  ${empBreak.map(e => `<div class="row"><span>${e.name}</span><span class="val">${e.orders} orders · ₹${e.total}</span></div>`).join('')}
+  <h2>Daily totals</h2>
+  ${Object.entries(byDay).sort((a, b) => b[0].localeCompare(a[0])).map(([d, v]) => `<div class="row"><span>${d}</span><span class="val">₹${v}</span></div>`).join('')}
+  </body></html>`);
+  w.document.close();
+  setTimeout(() => w.print(), 500);
+}
+
+function exportCSV() {
+  if (!allOrders.length) { toast('No orders to export'); return; }
+  const rows = ['Date,Employee,Tiffin Type,Qty,Unit Price,Total,Time',
+    ...allOrders.map(o => `${o.date},${o.emp},${o.tiffin},${o.qty},${o.unitPrice},${o.total},${o.time || ''}`)
+  ];
+  const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'TiffinOrders_May2026.csv';
+  a.click();
+  toast('CSV downloaded! ✓');
+}
+
+function copyReport() {
+  renderReport();
+  const tot = allOrders.reduce((s, o) => s + (Number(o.total) || 0), 0);
+  const full = allOrders.filter(o => o.tiffin === 'Full Tiffin').reduce((s, o) => s + (Number(o.qty) || 0), 0);
+  const half = allOrders.filter(o => o.tiffin === 'Half Tiffin').reduce((s, o) => s + (Number(o.qty) || 0), 0);
+  const text = `OFFICE TIFFIN REPORT — MAY 2026\nDate: ${getTodayLabel()}\nTotal Orders: ${allOrders.length}\nTotal Revenue: ₹${tot}\nFull Tiffins: ${full}\nHalf Tiffins: ${half}`;
+  navigator.clipboard.writeText(text)
+    .then(() => toast('Report copied to clipboard ✓'))
+    .catch(() => toast('Use Print instead'));
+}
+
+/* ════════════════════════════════════════════
+   INIT
+   ════════════════════════════════════════════ */
+populateLogin();
+showPage('pgLogin');
+</script>
+</body>
+</html>
