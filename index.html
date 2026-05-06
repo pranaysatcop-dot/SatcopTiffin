@@ -661,12 +661,9 @@ async function appendRow(order) {
     saveLocalOrders(local);
     return { success: true };
   }
-  await fetch(API_URL, {
-    method: 'POST',
-    mode: 'no-cors',
-    headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify(order)
-  });
+  // GET + URL params avoids the Apps Script redirect issue that kills POST+no-cors
+  const url = API_URL + '?action=write&data=' + encodeURIComponent(JSON.stringify(order));
+  await fetch(url, { method: 'GET', mode: 'no-cors' });
   return { success: true };
 }
 
