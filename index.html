@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+<meta http-equiv="Pragma" content="no-cache"/>
+<meta http-equiv="Expires" content="0"/>
 <title>Office Tiffin Tracker</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Poppins:wght@600;700&display=swap" rel="stylesheet"/>
 <style>
-/* ── PASTE YOUR APPS SCRIPT URL BELOW ── */
-/* Find: const API_URL = "PASTE_YOUR_URL_HERE"; in the script section */
-
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
   --p:#1E3A5F;--a:#2E86AB;--gold:#F0A500;--g:#27AE60;--r:#E74C3C;
@@ -51,12 +51,18 @@ html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--t
   font-size:.95rem;font-weight:800;cursor:pointer;transition:opacity .2s
 }
 .btnPrimary:hover{opacity:.9}
+.btnPrimary:disabled{opacity:.6;cursor:not-allowed}
 .lnk{margin-top:.9rem;font-size:.78rem;color:#6B7280}
 .lnk span{color:#2E86AB;cursor:pointer;font-weight:800}
 .errmsg{
   background:#FEF2F2;border:1px solid #FECACA;color:#991B1B;
   border-radius:8px;padding:.6rem .9rem;font-size:.8rem;
   margin-bottom:.75rem;display:none
+}
+.loadingMsg{
+  background:#EAF4FB;border:1px solid #B5D4F4;color:#0C447C;
+  border-radius:8px;padding:.6rem .9rem;font-size:.8rem;
+  margin-bottom:.75rem;display:none;text-align:center
 }
 
 /* ── TOP BAR ── */
@@ -250,6 +256,10 @@ tr:hover td{background:#F8FAFC}
 /* ── SECTION TITLE ── */
 .secTitle{font-size:.78rem;font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:.6rem}
 
+/* ── SPINNER ── */
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;margin-right:6px;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+
 @media(max-width:380px){
   .statsGrid{grid-template-columns:repeat(3,1fr)}
   .tifPrice{font-size:.95rem}
@@ -267,7 +277,7 @@ tr:hover td{background:#F8FAFC}
     <p style="font-size:.84rem;color:var(--muted);margin-bottom:.5rem">Remove <strong id="delName"></strong> from the dashboard. Their orders in Google Sheet remain.</p>
     <div class="modalBtns">
       <button class="btnSecondary" onclick="closeModal()">Cancel</button>
-      <button class="btnDanger" onclick="confirmDelete()">Remove</button>
+      <button class="btnDanger" id="btnConfirmDel" onclick="confirmDelete()">Remove</button>
     </div>
   </div>
 </div>
@@ -276,35 +286,46 @@ tr:hover td{background:#F8FAFC}
 <div class="modalBg" id="editModal">
   <div class="modal">
     <h3>Edit employee</h3>
-    <div class="fg"><label style="font-size:.72rem;font-weight:800;text-transform:uppercase;color:#374151;display:block;margin-bottom:.35rem">Full Name</label><input class="inp" id="editName"/></div>
-    <div class="fg"><label style="font-size:.72rem;font-weight:800;text-transform:uppercase;color:#374151;display:block;margin-bottom:.35rem">PIN (4 digits)</label><input class="inp" id="editPin" type="password" maxlength="4"/></div>
-    <div class="fg"><label style="font-size:.72rem;font-weight:800;text-transform:uppercase;color:#374151;display:block;margin-bottom:.35rem">Role</label>
-      <select class="inp" id="editRole"><option value="employee">Employee</option><option value="admin">Admin</option></select>
+    <div class="fg">
+      <label style="font-size:.72rem;font-weight:800;text-transform:uppercase;color:#374151;display:block;margin-bottom:.35rem">Full Name</label>
+      <input class="inp" id="editName"/>
+    </div>
+    <div class="fg">
+      <label style="font-size:.72rem;font-weight:800;text-transform:uppercase;color:#374151;display:block;margin-bottom:.35rem">PIN (4 digits)</label>
+      <input class="inp" id="editPin" type="password" maxlength="4"/>
+    </div>
+    <div class="fg">
+      <label style="font-size:.72rem;font-weight:800;text-transform:uppercase;color:#374151;display:block;margin-bottom:.35rem">Role</label>
+      <select class="inp" id="editRole">
+        <option value="employee">Employee</option>
+        <option value="admin">Admin</option>
+      </select>
     </div>
     <div class="modalBtns">
       <button class="btnSecondary" onclick="closeModal()">Cancel</button>
-      <button class="btnDanger" style="background:#1E3A5F" onclick="confirmEdit()">Save</button>
+      <button class="btnDanger" style="background:#1E3A5F" id="btnConfirmEdit" onclick="confirmEdit()">Save</button>
     </div>
   </div>
 </div>
 
 <!-- ═══════════ LOGIN ═══════════ -->
 <div class="page on" id="pgLogin">
-  <div id="pgLogin" style="display:flex;align-items:center;justify-content:center;padding:2rem;min-height:100vh;background:linear-gradient(160deg,#1E3A5F 0%,#2E86AB 100%)">
+  <div style="display:flex;align-items:center;justify-content:center;padding:2rem;min-height:100vh;background:linear-gradient(160deg,#1E3A5F 0%,#2E86AB 100%)">
   <div class="lcard">
     <div class="llogo">🍱</div>
     <h1>Tiffin Tracker</h1>
     <p>Office Meal System — Live Google Sheet Sync</p>
     <div class="errmsg" id="errMsg"></div>
+    <div class="loadingMsg" id="loadingMsg">⏳ Loading employees from sheet...</div>
     <div class="fg">
       <label>Select Your Name</label>
-      <select id="empSel"><option value="">-- Choose your name --</option></select>
+      <select id="empSel"><option value="">-- Loading... --</option></select>
     </div>
     <div class="fg">
       <label>PIN</label>
       <input type="password" id="pinIn" placeholder="4-digit PIN" maxlength="4" onkeydown="if(event.key==='Enter')doLogin()"/>
     </div>
-    <button class="btnPrimary" onclick="doLogin()">Login →</button>
+    <button class="btnPrimary" id="loginBtn" onclick="doLogin()">Login →</button>
     <div class="lnk">Admin? <span onclick="goAdmin()">Admin Panel</span></div>
   </div>
   </div>
@@ -315,7 +336,7 @@ tr:hover td{background:#F8FAFC}
   <div class="topbar">
     <div class="tb-left">
       <div class="av" id="empAv">RS</div>
-      <div><h2 id="empGreet">Good morning!</h2><p>May 2026 · Office Tiffin</p></div>
+      <div><h2 id="empGreet">Good morning!</h2><p id="empSubtitle">Office Tiffin</p></div>
     </div>
     <button class="btnGhost" onclick="logout()">Logout</button>
   </div>
@@ -326,7 +347,7 @@ tr:hover td{background:#F8FAFC}
   </div>
   <div class="content">
 
-    <!-- ORDER -->
+    <!-- ORDER TAB -->
     <div id="tOrder">
       <div class="syncBar">
         <div class="syncSt"><div class="dot" id="eDot"></div><span id="eSyncTxt">Connecting...</span></div>
@@ -371,7 +392,7 @@ tr:hover td{background:#F8FAFC}
       </div>
     </div>
 
-    <!-- HISTORY -->
+    <!-- HISTORY TAB -->
     <div id="tHistory" style="display:none">
       <div class="card" style="padding:0;overflow:hidden">
         <div style="padding:.9rem 1.1rem .5rem"><h3>My order history</h3></div>
@@ -382,7 +403,7 @@ tr:hover td{background:#F8FAFC}
       </div>
     </div>
 
-    <!-- SUMMARY -->
+    <!-- SUMMARY TAB -->
     <div id="tSummary" style="display:none">
       <div class="statsGrid" id="empStats">
         <div class="stat"><div class="sv">-</div><div class="sl">Days ordered</div></div>
@@ -408,7 +429,7 @@ tr:hover td{background:#F8FAFC}
   <div class="topbar">
     <div class="tb-left">
       <div class="av" style="background:rgba(255,255,255,.3);font-size:11px">ADM</div>
-      <div><h2>Admin Panel</h2><p>Full Control · May 2026</p></div>
+      <div><h2>Admin Panel</h2><p id="adminSubtitle">Full Control · Office Tiffin</p></div>
     </div>
     <button class="btnGhost" onclick="logout()">Logout</button>
   </div>
@@ -420,7 +441,7 @@ tr:hover td{background:#F8FAFC}
   </div>
   <div class="content">
 
-    <!-- TODAY -->
+    <!-- TODAY TAB -->
     <div id="aToday">
       <div class="syncBar">
         <div class="syncSt"><div class="dot" id="aDot"></div><span id="aSyncTxt">Loading...</span></div>
@@ -442,7 +463,7 @@ tr:hover td{background:#F8FAFC}
       </table></div>
     </div>
 
-    <!-- EMPLOYEES -->
+    <!-- EMPLOYEES TAB -->
     <div id="aEmployees" style="display:none">
       <div class="card" style="padding:0;overflow:hidden">
         <div style="padding:.9rem 1.1rem .6rem;display:flex;justify-content:space-between;align-items:center">
@@ -465,15 +486,15 @@ tr:hover td{background:#F8FAFC}
             <select class="inp" id="newRole"><option value="employee">Employee</option><option value="admin">Admin</option></select>
           </div>
           <div style="display:flex;gap:.5rem">
-            <button class="btnSm btnAdd2" onclick="addEmployee()">Add Employee</button>
+            <button class="btnSm btnAdd2" id="btnAddEmp" onclick="addEmployee()">Add Employee</button>
             <button class="btnSm btnCnl" onclick="toggleAddForm()">Cancel</button>
           </div>
         </div>
-        <div id="empList"></div>
+        <div id="empList"><div class="empty" style="padding:1rem">Loading employees...</div></div>
       </div>
     </div>
 
-    <!-- MONTHLY -->
+    <!-- MONTHLY TAB -->
     <div id="aMonthly" style="display:none">
       <div class="heroCard">
         <div class="hl">Total monthly revenue</div>
@@ -497,7 +518,7 @@ tr:hover td{background:#F8FAFC}
       </table></div>
     </div>
 
-    <!-- REPORT -->
+    <!-- REPORT TAB -->
     <div id="aReport" style="display:none">
       <div style="margin-bottom:.9rem;display:flex;flex-wrap:wrap;gap:.5rem">
         <button class="btnRep" onclick="printReport()">🖨 Print</button>
@@ -505,7 +526,7 @@ tr:hover td{background:#F8FAFC}
         <button class="btnRep blue" onclick="copyReport()">📋 Copy Summary</button>
       </div>
       <div class="repBox">
-        <h4>Office Tiffin Report — May 2026</h4>
+        <h4 id="reportTitle">Office Tiffin Report</h4>
         <div class="repRow"><span class="rn">Generated on</span><span class="rv" id="rDate">-</span></div>
         <div class="repRow"><span class="rn">Total orders</span><span class="rv" id="rOrders">0</span></div>
         <div class="repRow"><span class="rn">Total revenue</span><span class="rv" id="rRev">₹0</span></div>
@@ -528,30 +549,12 @@ tr:hover td{background:#F8FAFC}
 
 <script>
 /* ════════════════════════════════════════════
-   ⬇ STEP 1: PASTE YOUR APPS SCRIPT URL HERE
+   CONFIG — paste your Apps Script URL here
    ════════════════════════════════════════════ */
-const API_URL = "https://script.google.com/macros/s/AKfycbyksVkTEqVun2DvlHwYKoSWCBes5JQXHO_fbhedTr1fRwlwA3Ssh21dleVM9zfb6LfU/exec";
-
-/* ════════════════════════════════════════════
-   ⬇ STEP 2: PASTE YOUR GOOGLE SHEET ID HERE
-   (the long string in the sheet URL between /d/ and /edit)
-   ════════════════════════════════════════════ */
+const API_URL  = "https://script.google.com/macros/s/AKfycbyksVkTEqVun2DvlHwYKoSWCBes5JQXHO_fbhedTr1fRwlwA3Ssh21dleVM9zfb6LfU/exec";
 const SHEET_ID = "1GRRxs7AWZkNL5XRERHYkNVbF-FqDdFsZrZrkmmoGWDE";
-
-/* ════════════════════════════════════════════
-   CONFIGURATION — edit employees and prices below
-   ════════════════════════════════════════════ */
-const PRICES = { full: 80, half: 50 };
-const ADMIN_PIN = "0000"; // Master admin PIN
-
-const DEFAULT_EMPS = [
-  { name: "Rahul Sharma",   pin: "1234", role: "employee" },
-  { name: "Priya Patil",    pin: "1234", role: "employee" },
-  { name: "Amit Desai",     pin: "1234", role: "employee" },
-  { name: "Sneha Joshi",    pin: "1234", role: "employee" },
-  { name: "Vikram Nair",    pin: "1234", role: "employee" },
-  { name: "Neha Kulkarni",  pin: "1234", role: "employee" },
-];
+const PRICES   = { full: 80, half: 50 };
+const ADMIN_PIN = "0000";
 
 /* ════════════════════════════════════════════
    APP STATE
@@ -559,6 +562,7 @@ const DEFAULT_EMPS = [
 let curUser = null, curRole = null;
 let qty = 1, selTif = null;
 let allOrders = [];
+let cachedEmps = [];      // in-memory employee cache
 let empEditing = null, empDeleting = null;
 
 /* ════════════════════════════════════════════
@@ -566,34 +570,75 @@ let empEditing = null, empDeleting = null;
    ════════════════════════════════════════════ */
 function getTodayLabel() {
   const d = new Date();
-  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-');
+  return d.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }).replace(/ /g,'-');
+}
+function getMonthLabel() {
+  return new Date().toLocaleDateString('en-IN', { month:'long', year:'numeric' });
 }
 function getTodayDay() {
-  return new Date().toLocaleDateString('en-IN', { weekday: 'long' });
+  return new Date().toLocaleDateString('en-IN', { weekday:'long' });
 }
 function isSunday() { return new Date().getDay() === 0; }
 
 /* ════════════════════════════════════════════
-   EMPLOYEE STORAGE
+   CORE API — all calls go through here
    ════════════════════════════════════════════ */
-function getEmps() {
-  return JSON.parse(localStorage.getItem('tif_emps') || JSON.stringify(DEFAULT_EMPS));
+async function apiCall(params) {
+  const url = API_URL + '?' + new URLSearchParams(params).toString();
+  const r = await fetch(url, { method:'GET' });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const data = await r.json();
+  if (data && data.error) throw new Error(data.error);
+  return data;
 }
-function saveEmps(e) { localStorage.setItem('tif_emps', JSON.stringify(e)); }
-function getLocalOrders() { return JSON.parse(localStorage.getItem('tif_orders') || '[]'); }
-function saveLocalOrders(o) { localStorage.setItem('tif_orders', JSON.stringify(o)); }
+
+/* ════════════════════════════════════════════
+   ORDERS API
+   ════════════════════════════════════════════ */
+async function readSheet() {
+  const data = await apiCall({ action: 'read' });
+  return Array.isArray(data) ? data : [];
+}
+
+async function appendRow(order) {
+  return await apiCall({
+    action: 'write',
+    data: encodeURIComponent(JSON.stringify(order))
+  });
+}
+
+/* ════════════════════════════════════════════
+   EMPLOYEES API — fetches from Google Sheet
+   ════════════════════════════════════════════ */
+async function fetchEmps() {
+  const data = await apiCall({ action: 'getEmployees' });
+  cachedEmps = Array.isArray(data) ? data : [];
+  return cachedEmps;
+}
+
+async function saveEmps(emps) {
+  cachedEmps = emps;
+  return await apiCall({
+    action: 'saveEmployees',
+    data: encodeURIComponent(JSON.stringify(emps))
+  });
+}
 
 /* ════════════════════════════════════════════
    UI HELPERS
    ════════════════════════════════════════════ */
-function initials(n) { return n.split(' ').map(x => x[0]).join('').toUpperCase().slice(0, 2); }
+function initials(n) {
+  return n.split(' ').map(x => x[0]).join('').toUpperCase().slice(0, 2);
+}
 function toast(m, d = 2800) {
   const t = document.getElementById('toast');
   t.textContent = m; t.classList.add('on');
   setTimeout(() => t.classList.remove('on'), d);
 }
 function showPage(id) {
-  document.querySelectorAll('.page').forEach(p => { p.classList.remove('on'); p.style.display = 'none'; });
+  document.querySelectorAll('.page').forEach(p => {
+    p.classList.remove('on'); p.style.display = 'none';
+  });
   const p = document.getElementById(id);
   p.style.display = 'block';
   setTimeout(() => p.classList.add('on'), 10);
@@ -601,96 +646,125 @@ function showPage(id) {
 function syncDot(dotId, txtId, state, msg) {
   const d = document.getElementById(dotId), t = document.getElementById(txtId);
   if (!d || !t) return;
-  d.className = 'dot ' + (state === 'ok' ? 'ok' : state === 'spin' ? 'spin' : 'err');
+  d.className = 'dot ' + (state==='ok' ? 'ok' : state==='spin' ? 'spin' : 'err');
   t.textContent = msg;
 }
 function closeModal() {
   document.querySelectorAll('.modalBg').forEach(m => m.classList.remove('vis'));
 }
-function populateLogin() {
-  const sel = document.getElementById('empSel');
-  sel.innerHTML = '<option value="">-- Choose your name --</option>';
-  getEmps().forEach(e => {
-    sel.innerHTML += `<option value="${e.name}">${e.name}${e.role === 'admin' ? ' (Admin)' : ''}</option>`;
-  });
-}
 function showErr(msg) {
   const el = document.getElementById('errMsg');
   el.textContent = msg; el.style.display = 'block';
-  setTimeout(() => el.style.display = 'none', 3000);
+  setTimeout(() => el.style.display = 'none', 3500);
 }
+function setLoading(id, loading, label='') {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.disabled = loading;
+  if (label) el.textContent = loading ? `⏳ ${label}` : el.dataset.label || label;
+}
+
+/* ════════════════════════════════════════════
+   LOGIN — populate from Google Sheet
+   ════════════════════════════════════════════ */
+async function populateLogin() {
+  const sel = document.getElementById('empSel');
+  const loadMsg = document.getElementById('loadingMsg');
+  const loginBtn = document.getElementById('loginBtn');
+
+  sel.innerHTML = '<option value="">-- Loading... --</option>';
+  loadMsg.style.display = 'block';
+  loginBtn.disabled = true;
+
+  try {
+    const emps = await fetchEmps();
+    sel.innerHTML = '<option value="">-- Choose your name --</option>';
+    if (emps.length === 0) {
+      sel.innerHTML += '<option value="" disabled>No employees found — ask admin</option>';
+    } else {
+      emps.forEach(e => {
+        sel.innerHTML += `<option value="${e.name}">${e.name}${e.role==='admin' ? ' (Admin)' : ''}</option>`;
+      });
+    }
+    loadMsg.style.display = 'none';
+    loginBtn.disabled = false;
+  } catch (err) {
+    sel.innerHTML = '<option value="">-- Failed to load --</option>';
+    loadMsg.style.display = 'none';
+    loginBtn.disabled = false;
+    showErr('Could not load employees from sheet. Check API URL.');
+  }
+}
+
+/* ════════════════════════════════════════════
+   AUTH
+   ════════════════════════════════════════════ */
+async function doLogin() {
+  const name = document.getElementById('empSel').value;
+  const pin  = document.getElementById('pinIn').value;
+  if (!name) { showErr('Please select your name'); return; }
+  if (pin.length < 4) { showErr('Enter your 4-digit PIN'); return; }
+
+  const loginBtn = document.getElementById('loginBtn');
+  loginBtn.disabled = true;
+  loginBtn.textContent = '⏳ Verifying...';
+
+  try {
+    // Use cached employees if available, else fetch fresh
+    const emps = cachedEmps.length ? cachedEmps : await fetchEmps();
+    const emp = emps.find(e => e.name === name);
+    if (!emp || String(emp.pin) !== String(pin)) {
+      showErr('Wrong PIN — please try again');
+      loginBtn.disabled = false; loginBtn.textContent = 'Login →';
+      return;
+    }
+    curUser = name; curRole = emp.role;
+    document.getElementById('pinIn').value = '';
+    loginBtn.textContent = 'Login →';
+    if (emp.role === 'admin') { showPage('pgAdmin'); initAdmin(); }
+    else { showPage('pgEmp'); initEmpDash(); }
+  } catch {
+    showErr('Connection error. Please retry.');
+    loginBtn.disabled = false; loginBtn.textContent = 'Login →';
+  }
+}
+
+function goAdmin() {
+  const p = prompt('Enter Master Admin PIN:');
+  if (p === ADMIN_PIN) {
+    curUser = 'Admin'; curRole = 'admin';
+    showPage('pgAdmin'); initAdmin();
+  } else if (p !== null) {
+    toast('Wrong admin PIN');
+  }
+}
+
+function logout() {
+  curUser = null; curRole = null; selTif = null; qty = 1; allOrders = [];
+  document.getElementById('empSel').value = '';
+  document.getElementById('pinIn').value = '';
+  showPage('pgLogin');
+  populateLogin(); // refresh employee list on logout
+}
+
+/* ════════════════════════════════════════════
+   TAB NAVIGATION
+   ════════════════════════════════════════════ */
 function empTab(el, id) {
   document.querySelectorAll('#pgEmp .navtab').forEach(t => t.classList.remove('act'));
   el.classList.add('act');
-  ['tOrder', 'tHistory', 'tSummary'].forEach(t => document.getElementById(t).style.display = 'none');
+  ['tOrder','tHistory','tSummary'].forEach(t => document.getElementById(t).style.display = 'none');
   document.getElementById(id).style.display = 'block';
   if (id === 'tHistory' || id === 'tSummary') renderEmpHistory();
 }
 function adminTab(el, id) {
   document.querySelectorAll('#pgAdmin .navtab').forEach(t => t.classList.remove('act'));
   el.classList.add('act');
-  ['aToday', 'aEmployees', 'aMonthly', 'aReport'].forEach(t => document.getElementById(t).style.display = 'none');
+  ['aToday','aEmployees','aMonthly','aReport'].forEach(t => document.getElementById(t).style.display = 'none');
   document.getElementById(id).style.display = 'block';
   if (id === 'aEmployees') renderEmpList();
-  if (id === 'aMonthly') renderMonthly();
-  if (id === 'aReport') renderReport();
-}
-
-/* ════════════════════════════════════════════
-   GOOGLE APPS SCRIPT API
-   ════════════════════════════════════════════ */
-async function readSheet() {
-  if (API_URL === "PASTE_YOUR_APPS_SCRIPT_URL_HERE") {
-    // Return local data if URL not configured
-    return getLocalOrders();
-  }
-  const r = await fetch(API_URL + '?action=read', {
-    method: 'GET',
-    muteHttpExceptions: true
-  });
-  if (!r.ok) throw new Error('HTTP ' + r.status);
-  const data = await r.json();
-  return Array.isArray(data) ? data : [];
-}
-
-async function appendRow(order) {
-  if (API_URL === "PASTE_YOUR_APPS_SCRIPT_URL_HERE") {
-    // Save locally if URL not configured
-    const local = getLocalOrders();
-    local.push(order);
-    saveLocalOrders(local);
-    return { success: true };
-  }
-  // GET + URL params avoids the Apps Script redirect issue that kills POST+no-cors
-  const url = API_URL + '?action=write&data=' + encodeURIComponent(JSON.stringify(order));
-  await fetch(url, { method: 'GET', mode: 'no-cors' });
-  return { success: true };
-}
-
-/* ════════════════════════════════════════════
-   AUTH
-   ════════════════════════════════════════════ */
-function doLogin() {
-  const name = document.getElementById('empSel').value;
-  const pin = document.getElementById('pinIn').value;
-  if (!name) { showErr('Please select your name'); return; }
-  if (pin.length < 4) { showErr('Enter your 4-digit PIN'); return; }
-  const emp = getEmps().find(e => e.name === name);
-  if (!emp || emp.pin !== pin) { showErr('Wrong PIN — please try again'); return; }
-  curUser = name; curRole = emp.role;
-  document.getElementById('pinIn').value = '';
-  if (emp.role === 'admin') { showPage('pgAdmin'); initAdmin(); }
-  else { showPage('pgEmp'); initEmpDash(); }
-}
-function goAdmin() {
-  const p = prompt('Enter Master Admin PIN:');
-  if (p === ADMIN_PIN) { curUser = 'Admin'; curRole = 'admin'; showPage('pgAdmin'); initAdmin(); }
-  else if (p !== null) toast('Wrong admin PIN');
-}
-function logout() {
-  curUser = null; curRole = null; selTif = null; qty = 1; allOrders = [];
-  document.getElementById('empSel').value = '';
-  showPage('pgLogin');
+  if (id === 'aMonthly')   renderMonthly();
+  if (id === 'aReport')    renderReport();
 }
 
 /* ════════════════════════════════════════════
@@ -698,13 +772,15 @@ function logout() {
    ════════════════════════════════════════════ */
 async function initEmpDash() {
   const first = curUser.split(' ')[0];
+  const month = getMonthLabel();
   document.getElementById('empAv').textContent = initials(curUser);
   document.getElementById('empGreet').textContent = `Good morning, ${first}!`;
+  document.getElementById('empSubtitle').textContent = `${month} · Office Tiffin`;
   document.getElementById('todayDate').textContent = getTodayLabel();
   document.getElementById('todayDay').textContent = getTodayDay();
   document.getElementById('sheetLink').href = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`;
-  document.getElementById('adminSheetLink').href = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`;
 
+  // Reset order UI
   selTif = null; qty = 1;
   document.getElementById('qNum').textContent = 1;
   document.getElementById('optFull').classList.remove('sel');
@@ -717,14 +793,14 @@ async function initEmpDash() {
     btn.style.background = '#ccc';
   }
 
-  syncDot('eDot', 'eSyncTxt', 'spin', 'Loading from Google Sheet...');
+  syncDot('eDot','eSyncTxt','spin','Loading from Google Sheet...');
   try {
     allOrders = await readSheet();
-    saveLocalOrders(allOrders);
-    syncDot('eDot', 'eSyncTxt', 'ok', 'Synced with Google Sheet ✓');
+    syncDot('eDot','eSyncTxt','ok','Synced with Google Sheet ✓');
   } catch {
-    allOrders = getLocalOrders();
-    syncDot('eDot', 'eSyncTxt', 'err', 'Offline — showing local data');
+    allOrders = [];
+    syncDot('eDot','eSyncTxt','err','Could not reach Google Sheet');
+    toast('⚠️ Could not load data from sheet');
   }
   checkTodayOrder();
   renderEmpHistory();
@@ -747,19 +823,21 @@ function pickTif(t) {
   if (allOrders.find(o => o.emp === curUser && o.date === getTodayLabel())) { toast('Already ordered today!'); return; }
   if (isSunday()) { toast('Office is closed on Sunday'); return; }
   selTif = t;
-  document.getElementById('optFull').classList.toggle('sel', t === 'full');
-  document.getElementById('optHalf').classList.toggle('sel', t === 'half');
+  document.getElementById('optFull').classList.toggle('sel', t==='full');
+  document.getElementById('optHalf').classList.toggle('sel', t==='half');
   const btn = document.getElementById('oBtn');
   btn.disabled = false;
-  btn.textContent = `Order ${t === 'full' ? 'Full' : 'Half'} Tiffin`;
+  btn.textContent = `Order ${t==='full' ? 'Full' : 'Half'} Tiffin`;
   btn.style.background = 'var(--gold)';
   updateOTotal();
 }
+
 function chgQty(d) {
   qty = Math.max(1, Math.min(10, qty + d));
   document.getElementById('qNum').textContent = qty;
   updateOTotal();
 }
+
 function updateOTotal() {
   document.getElementById('oTotal').textContent = selTif ? `₹${PRICES[selTif] * qty}` : '₹0';
 }
@@ -767,212 +845,283 @@ function updateOTotal() {
 async function placeOrder() {
   if (!selTif) return;
   if (allOrders.find(o => o.emp === curUser && o.date === getTodayLabel())) { toast('Already ordered today!'); return; }
+
   const btn = document.getElementById('oBtn');
   btn.disabled = true; btn.textContent = '⏳ Saving to Google Sheet...'; btn.style.background = '#2E86AB';
-  syncDot('eDot', 'eSyncTxt', 'spin', 'Writing order to sheet...');
+  syncDot('eDot','eSyncTxt','spin','Writing order to sheet...');
 
   const now = new Date();
   const order = {
     date: getTodayLabel(),
     emp: curUser,
     tiffin: selTif === 'full' ? 'Full Tiffin' : 'Half Tiffin',
-    qty, unitPrice: PRICES[selTif],
+    qty,
+    unitPrice: PRICES[selTif],
     total: PRICES[selTif] * qty,
-    time: now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+    time: now.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' })
   };
 
   try {
     const res = await appendRow(order);
-    if (res.success) {
+    if (res && res.success) {
       allOrders.push(order);
-      saveLocalOrders(allOrders);
-      btn.textContent = '✓ Saved to Google Sheet!'; btn.style.background = '#27AE60';
-      syncDot('eDot', 'eSyncTxt', 'ok', 'Order saved to Google Sheet ✓');
+      btn.textContent = `✓ Saved! ${order.tiffin} ₹${order.total}`; btn.style.background = '#27AE60';
+      syncDot('eDot','eSyncTxt','ok','Order saved to Google Sheet ✓');
       toast(`🍱 Order confirmed! ₹${order.total} saved to sheet`);
       renderEmpHistory();
-    } else throw new Error(res.error || 'Unknown error');
+    } else {
+      throw new Error(res?.error || 'Unknown error');
+    }
   } catch (e) {
-    allOrders.push(order);
-    const local = getLocalOrders(); local.push(order); saveLocalOrders(local);
-    btn.textContent = '✓ Saved locally'; btn.style.background = 'var(--gold)';
-    syncDot('eDot', 'eSyncTxt', 'err', 'Saved locally — sheet sync pending');
-    toast('Order saved locally. Check sheet connection.');
-    renderEmpHistory();
+    btn.disabled = false; btn.textContent = `Order ${selTif === 'full' ? 'Full' : 'Half'} Tiffin`; btn.style.background = 'var(--gold)';
+    syncDot('eDot','eSyncTxt','err','Failed to save — please retry');
+    toast('❌ Failed to save order. Please try again.');
   }
 }
 
 function renderEmpHistory() {
-  const mine = allOrders.filter(o => o.emp === curUser);
-  const sorted = mine.slice().sort((a, b) => b.date.localeCompare(a.date));
-  const tbl = document.getElementById('empHistTbl');
-  if (!sorted.length) {
-    tbl.innerHTML = '<tr><td colspan="5" class="empty">No orders yet this month</td></tr>';
-  } else {
-    tbl.innerHTML = sorted.map(o => `
-      <tr>
-        <td>${o.date}</td>
-        <td><span class="pill ${o.tiffin === 'Full Tiffin' ? 'pFull' : 'pHalf'}">${o.tiffin}</span></td>
-        <td>${o.qty}</td>
-        <td style="font-weight:800;color:var(--p)">₹${o.total}</td>
-        <td style="color:var(--muted)">${o.time || '—'}</td>
-      </tr>`).join('');
-  }
-  // Update summary stats
-  const tot = mine.reduce((s, o) => s + (Number(o.total) || 0), 0);
-  const full = mine.filter(o => o.tiffin === 'Full Tiffin').reduce((s, o) => s + (Number(o.qty) || 0), 0);
-  const half = mine.filter(o => o.tiffin === 'Half Tiffin').reduce((s, o) => s + (Number(o.qty) || 0), 0);
+  const mine   = allOrders.filter(o => o.emp === curUser);
+  const sorted = mine.slice().sort((a,b) => b.date.localeCompare(a.date));
+  const tbl    = document.getElementById('empHistTbl');
+
+  tbl.innerHTML = sorted.length
+    ? sorted.map(o => `
+        <tr>
+          <td>${o.date}</td>
+          <td><span class="pill ${o.tiffin==='Full Tiffin' ? 'pFull' : 'pHalf'}">${o.tiffin}</span></td>
+          <td>${o.qty}</td>
+          <td style="font-weight:800;color:var(--p)">₹${o.total}</td>
+          <td style="color:var(--muted)">${o.time || '—'}</td>
+        </tr>`).join('')
+    : '<tr><td colspan="5" class="empty">No orders yet this month</td></tr>';
+
+  const tot  = mine.reduce((s,o) => s + (Number(o.total)||0), 0);
+  const full = mine.filter(o => o.tiffin==='Full Tiffin').reduce((s,o) => s + (Number(o.qty)||0), 0);
+  const half = mine.filter(o => o.tiffin==='Half Tiffin').reduce((s,o) => s + (Number(o.qty)||0), 0);
+
   document.getElementById('empStats').innerHTML = `
     <div class="stat"><div class="sv">${mine.length}</div><div class="sl">Days ordered</div></div>
     <div class="stat"><div class="sv">${full}</div><div class="sl">Full tiffins</div></div>
     <div class="stat"><div class="sv">${half}</div><div class="sl">Half tiffins</div></div>`;
   document.getElementById('empMonthAmt').textContent = `₹${tot}`;
-  const maxV = Math.max(full * 80, half * 50, 1);
+
+  const maxV = Math.max(full*80, half*50, 1);
   document.getElementById('empBarChart').innerHTML = `
-    <div class="barRow"><div class="barLabel">Full Tiffin</div><div class="barTrack"><div class="barFill" style="width:${Math.round(full*80/maxV*100)}%;background:#2E86AB"></div></div><div class="barVal">₹${full * 80}</div></div>
-    <div class="barRow"><div class="barLabel">Half Tiffin</div><div class="barTrack"><div class="barFill" style="width:${Math.round(half*50/maxV*100)}%;background:#F0A500"></div></div><div class="barVal">₹${half * 50}</div></div>`;
+    <div class="barRow"><div class="barLabel">Full Tiffin</div><div class="barTrack"><div class="barFill" style="width:${Math.round(full*80/maxV*100)}%;background:#2E86AB"></div></div><div class="barVal">₹${full*80}</div></div>
+    <div class="barRow"><div class="barLabel">Half Tiffin</div><div class="barTrack"><div class="barFill" style="width:${Math.round(half*50/maxV*100)}%;background:#F0A500"></div></div><div class="barVal">₹${half*50}</div></div>`;
 }
 
 /* ════════════════════════════════════════════
    ADMIN DASHBOARD
    ════════════════════════════════════════════ */
 async function initAdmin() {
+  const month = getMonthLabel();
+  document.getElementById('adminSubtitle').textContent = `Full Control · ${month}`;
   document.getElementById('adminSheetLink').href = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`;
-  syncDot('aDot', 'aSyncTxt', 'spin', 'Loading from Google Sheet...');
+
+  syncDot('aDot','aSyncTxt','spin','Loading from Google Sheet...');
   try {
     allOrders = await readSheet();
-    saveLocalOrders(allOrders);
-    syncDot('aDot', 'aSyncTxt', 'ok', 'Live data from Google Sheet ✓');
+    syncDot('aDot','aSyncTxt','ok','Live data from Google Sheet ✓');
   } catch {
-    allOrders = getLocalOrders();
-    syncDot('aDot', 'aSyncTxt', 'err', 'Local data — sheet unavailable');
+    allOrders = [];
+    syncDot('aDot','aSyncTxt','err','Could not reach Google Sheet');
+    toast('⚠️ Could not load data from sheet');
   }
   renderToday();
 }
 
 async function refreshAdmin() {
-  syncDot('aDot', 'aSyncTxt', 'spin', 'Refreshing...');
+  syncDot('aDot','aSyncTxt','spin','Refreshing...');
   try {
     allOrders = await readSheet();
-    saveLocalOrders(allOrders);
-    syncDot('aDot', 'aSyncTxt', 'ok', 'Refreshed ✓');
+    syncDot('aDot','aSyncTxt','ok','Refreshed ✓');
+    renderToday();
+    toast('✓ Data refreshed from Google Sheet');
   } catch {
-    syncDot('aDot', 'aSyncTxt', 'err', 'Refresh failed');
+    syncDot('aDot','aSyncTxt','err','Refresh failed');
+    toast('❌ Refresh failed — check connection');
   }
-  renderToday();
-  toast('Data refreshed from Google Sheet');
 }
 
-function renderToday() {
+async function renderToday() {
   const today = getTodayLabel();
   const todayOrders = allOrders.filter(o => o.date === today);
-  const rev = todayOrders.reduce((s, o) => s + (Number(o.total) || 0), 0);
-  const full = todayOrders.filter(o => o.tiffin === 'Full Tiffin').reduce((s, o) => s + (Number(o.qty) || 0), 0);
-  const half = todayOrders.filter(o => o.tiffin === 'Half Tiffin').reduce((s, o) => s + (Number(o.qty) || 0), 0);
+  const rev  = todayOrders.reduce((s,o) => s + (Number(o.total)||0), 0);
+  const full = todayOrders.filter(o => o.tiffin==='Full Tiffin').reduce((s,o) => s + (Number(o.qty)||0), 0);
+  const half = todayOrders.filter(o => o.tiffin==='Half Tiffin').reduce((s,o) => s + (Number(o.qty)||0), 0);
+
   document.getElementById('todayStats').innerHTML = `
     <div class="astat"><div class="av2">${todayOrders.length}</div><div class="al">Orders today</div></div>
     <div class="astat"><div class="av2">₹${rev}</div><div class="al">Today's revenue</div></div>
     <div class="astat"><div class="av2">${full}</div><div class="al">Full tiffins</div></div>
     <div class="astat"><div class="av2">${half}</div><div class="al">Half tiffins</div></div>`;
-  const emps = getEmps();
-  document.getElementById('todayTbl').innerHTML = emps.map(e => {
-    const o = todayOrders.find(x => x.emp === e.name);
-    if (o) return `<tr><td>${e.name}</td><td><span class="pill ${o.tiffin === 'Full Tiffin' ? 'pFull' : 'pHalf'}">${o.tiffin}</span></td><td>${o.qty}</td><td style="font-weight:800;color:var(--p)">₹${o.total}</td><td style="color:var(--muted)">${o.time || '—'}</td></tr>`;
-    return `<tr><td>${e.name}</td><td><span class="pill pNone">No order</span></td><td>—</td><td>—</td><td>—</td></tr>`;
-  }).join('') || '<tr><td colspan="5" class="empty">No employees added yet</td></tr>';
+
+  // Fetch fresh employee list for today's table
+  let emps = cachedEmps;
+  if (!emps.length) {
+    try { emps = await fetchEmps(); } catch { emps = []; }
+  }
+
+  document.getElementById('todayTbl').innerHTML = emps.length
+    ? emps.map(e => {
+        const o = todayOrders.find(x => x.emp === e.name);
+        return o
+          ? `<tr><td>${e.name}</td><td><span class="pill ${o.tiffin==='Full Tiffin'?'pFull':'pHalf'}">${o.tiffin}</span></td><td>${o.qty}</td><td style="font-weight:800;color:var(--p)">₹${o.total}</td><td style="color:var(--muted)">${o.time||'—'}</td></tr>`
+          : `<tr><td>${e.name}</td><td><span class="pill pNone">No order</span></td><td>—</td><td>—</td><td>—</td></tr>`;
+      }).join('')
+    : '<tr><td colspan="5" class="empty">No employees found</td></tr>';
 }
 
 /* ════════════════════════════════════════════
-   EMPLOYEE MANAGEMENT
+   EMPLOYEE MANAGEMENT — all synced via Sheet
    ════════════════════════════════════════════ */
-function renderEmpList() {
-  const emps = getEmps();
+async function renderEmpList() {
   const el = document.getElementById('empList');
-  if (!emps.length) { el.innerHTML = '<div class="empty" style="padding:1rem">No employees yet. Add one above.</div>'; return; }
-  el.innerHTML = emps.map((e, i) => `
-    <div class="empRow">
-      <div class="empAv">${initials(e.name)}</div>
-      <div style="flex:1">
-        <div class="empName">${e.name}</div>
-        <div style="font-size:.7rem;margin-top:.1rem"><span class="pill ${e.role === 'admin' ? 'pAdmin' : 'pEmp'}">${e.role}</span></div>
-      </div>
-      <button class="btnIcon" onclick="openEdit(${i})" title="Edit">✏️</button>
-      <button class="btnIcon del" onclick="openDelete(${i})" title="Delete">🗑</button>
-    </div>`).join('');
+  el.innerHTML = '<div class="empty" style="padding:1rem">Loading...</div>';
+  try {
+    const emps = await fetchEmps();
+    if (!emps.length) {
+      el.innerHTML = '<div class="empty" style="padding:1rem">No employees yet. Add one above.</div>';
+      return;
+    }
+    el.innerHTML = emps.map((e, i) => `
+      <div class="empRow">
+        <div class="empAv">${initials(e.name)}</div>
+        <div style="flex:1">
+          <div class="empName">${e.name}</div>
+          <div style="font-size:.7rem;margin-top:.1rem"><span class="pill ${e.role==='admin'?'pAdmin':'pEmp'}">${e.role}</span></div>
+        </div>
+        <button class="btnIcon" onclick="openEdit(${i})" title="Edit">✏️</button>
+        <button class="btnIcon del" onclick="openDelete(${i})" title="Delete">🗑</button>
+      </div>`).join('');
+  } catch {
+    el.innerHTML = '<div class="empty" style="padding:1rem">Failed to load employees</div>';
+    toast('❌ Could not load employees');
+  }
 }
-function toggleAddForm() { document.getElementById('addEmpForm').classList.toggle('vis'); }
-function addEmployee() {
+
+function toggleAddForm() {
+  document.getElementById('addEmpForm').classList.toggle('vis');
+}
+
+async function addEmployee() {
   const name = document.getElementById('newName').value.trim();
-  const pin = document.getElementById('newPin').value;
+  const pin  = document.getElementById('newPin').value;
   const role = document.getElementById('newRole').value;
   if (!name) { toast('Enter employee name'); return; }
   if (pin.length < 4) { toast('PIN must be 4 digits'); return; }
-  const emps = getEmps();
-  if (emps.find(e => e.name.toLowerCase() === name.toLowerCase())) { toast('Employee already exists'); return; }
-  emps.push({ name, pin, role }); saveEmps(emps);
-  document.getElementById('newName').value = ''; document.getElementById('newPin').value = '';
-  toggleAddForm(); populateLogin(); renderEmpList();
-  toast(`${name} added successfully ✓`);
+
+  const btn = document.getElementById('btnAddEmp');
+  btn.disabled = true; btn.textContent = '⏳ Saving...';
+
+  try {
+    const emps = await fetchEmps();
+    if (emps.find(e => e.name.toLowerCase() === name.toLowerCase())) {
+      toast('Employee already exists'); btn.disabled = false; btn.textContent = 'Add Employee'; return;
+    }
+    emps.push({ name, pin, role });
+    await saveEmps(emps);
+    document.getElementById('newName').value = '';
+    document.getElementById('newPin').value = '';
+    toggleAddForm();
+    await renderEmpList();
+    toast(`✓ ${name} added and saved to sheet`);
+  } catch {
+    toast('❌ Failed to save — check connection');
+  }
+  btn.disabled = false; btn.textContent = 'Add Employee';
 }
+
 function openEdit(i) {
   empEditing = i;
-  const e = getEmps()[i];
+  const e = cachedEmps[i];
   document.getElementById('editName').value = e.name;
-  document.getElementById('editPin').value = e.pin;
+  document.getElementById('editPin').value  = e.pin;
   document.getElementById('editRole').value = e.role;
   document.getElementById('editModal').classList.add('vis');
 }
-function confirmEdit() {
+
+async function confirmEdit() {
   const name = document.getElementById('editName').value.trim();
-  const pin = document.getElementById('editPin').value;
+  const pin  = document.getElementById('editPin').value;
   const role = document.getElementById('editRole').value;
-  if (!name || pin.length < 4) { toast('Fill all fields'); return; }
-  const emps = getEmps(); emps[empEditing] = { name, pin, role }; saveEmps(emps);
-  closeModal(); populateLogin(); renderEmpList(); toast('Employee updated ✓');
+  if (!name || pin.length < 4) { toast('Fill all fields correctly'); return; }
+
+  const btn = document.getElementById('btnConfirmEdit');
+  btn.disabled = true; btn.textContent = '⏳ Saving...';
+
+  try {
+    const emps = cachedEmps.slice();
+    emps[empEditing] = { name, pin, role };
+    await saveEmps(emps);
+    closeModal();
+    await renderEmpList();
+    toast('✓ Employee updated in sheet');
+  } catch {
+    toast('❌ Failed to save — check connection');
+  }
+  btn.disabled = false; btn.textContent = 'Save';
 }
+
 function openDelete(i) {
   empDeleting = i;
-  document.getElementById('delName').textContent = getEmps()[i].name;
+  document.getElementById('delName').textContent = cachedEmps[i].name;
   document.getElementById('delModal').classList.add('vis');
 }
-function confirmDelete() {
-  const emps = getEmps(); emps.splice(empDeleting, 1); saveEmps(emps);
-  closeModal(); populateLogin(); renderEmpList(); toast('Employee removed');
+
+async function confirmDelete() {
+  const btn = document.getElementById('btnConfirmDel');
+  btn.disabled = true; btn.textContent = '⏳ Removing...';
+
+  try {
+    const emps = cachedEmps.slice();
+    emps.splice(empDeleting, 1);
+    await saveEmps(emps);
+    closeModal();
+    await renderEmpList();
+    toast('✓ Employee removed from sheet');
+  } catch {
+    toast('❌ Failed to remove — check connection');
+  }
+  btn.disabled = false; btn.textContent = 'Remove';
 }
 
 /* ════════════════════════════════════════════
    MONTHLY
    ════════════════════════════════════════════ */
 function renderMonthly() {
-  const tot = allOrders.reduce((s, o) => s + (Number(o.total) || 0), 0);
-  const full = allOrders.filter(o => o.tiffin === 'Full Tiffin').reduce((s, o) => s + (Number(o.qty) || 0), 0);
-  const half = allOrders.filter(o => o.tiffin === 'Half Tiffin').reduce((s, o) => s + (Number(o.qty) || 0), 0);
+  const tot  = allOrders.reduce((s,o) => s + (Number(o.total)||0), 0);
+  const full = allOrders.filter(o => o.tiffin==='Full Tiffin').reduce((s,o) => s + (Number(o.qty)||0), 0);
+  const half = allOrders.filter(o => o.tiffin==='Half Tiffin').reduce((s,o) => s + (Number(o.qty)||0), 0);
   const uEmps = [...new Set(allOrders.map(o => o.emp))];
+
   document.getElementById('monthTotal').textContent = `₹${tot}`;
-  document.getElementById('monthSub').textContent = `${allOrders.length} orders · ${uEmps.length} employees`;
-  document.getElementById('monthStats').innerHTML = `
+  document.getElementById('monthSub').textContent   = `${allOrders.length} orders · ${uEmps.length} employees`;
+  document.getElementById('monthStats').innerHTML   = `
     <div class="astat"><div class="av2">${allOrders.length}</div><div class="al">Total orders</div></div>
     <div class="astat"><div class="av2">₹${tot}</div><div class="al">Revenue</div></div>
     <div class="astat"><div class="av2">${full}</div><div class="al">Full tiffins</div></div>
     <div class="astat"><div class="av2">${half}</div><div class="al">Half tiffins</div></div>`;
-  // Bar chart
-  const empTots = getEmps().map(e => {
+
+  const empTots = cachedEmps.map(e => {
     const mine = allOrders.filter(o => o.emp === e.name);
-    return { name: e.name.split(' ')[0], val: mine.reduce((s, o) => s + (Number(o.total) || 0), 0) };
-  }).filter(e => e.val > 0).sort((a, b) => b.val - a.val);
+    return { name: e.name.split(' ')[0], val: mine.reduce((s,o) => s + (Number(o.total)||0), 0) };
+  }).filter(e => e.val > 0).sort((a,b) => b.val - a.val);
+
   const maxV = Math.max(...empTots.map(e => e.val), 1);
   document.getElementById('empBreakChart').innerHTML = empTots.map(e => `
     <div class="barRow">
       <div class="barLabel">${e.name}</div>
-      <div class="barTrack"><div class="barFill" style="width:${Math.round(e.val / maxV * 100)}%;background:#2E86AB"></div></div>
+      <div class="barTrack"><div class="barFill" style="width:${Math.round(e.val/maxV*100)}%;background:#2E86AB"></div></div>
       <div class="barVal">₹${e.val}</div>
     </div>`).join('') || '<div class="empty">No orders yet</div>';
-  // Full table
-  const sorted = allOrders.slice().sort((a, b) => b.date.localeCompare(a.date));
+
+  const sorted = allOrders.slice().sort((a,b) => b.date.localeCompare(a.date));
   document.getElementById('monthTbl').innerHTML = sorted.map(o => `
     <tr>
-      <td>${o.date}</td>
-      <td>${o.emp}</td>
-      <td><span class="pill ${o.tiffin === 'Full Tiffin' ? 'pFull' : 'pHalf'}">${o.tiffin}</span></td>
+      <td>${o.date}</td><td>${o.emp}</td>
+      <td><span class="pill ${o.tiffin==='Full Tiffin'?'pFull':'pHalf'}">${o.tiffin}</span></td>
       <td>${o.qty}</td>
       <td style="font-weight:800;color:var(--p)">₹${o.total}</td>
     </tr>`).join('') || '<tr><td colspan="5" class="empty">No orders yet</td></tr>';
@@ -982,64 +1131,67 @@ function renderMonthly() {
    REPORT
    ════════════════════════════════════════════ */
 function renderReport() {
-  const tot = allOrders.reduce((s, o) => s + (Number(o.total) || 0), 0);
-  const full = allOrders.filter(o => o.tiffin === 'Full Tiffin').reduce((s, o) => s + (Number(o.qty) || 0), 0);
-  const half = allOrders.filter(o => o.tiffin === 'Half Tiffin').reduce((s, o) => s + (Number(o.qty) || 0), 0);
+  const tot  = allOrders.reduce((s,o) => s + (Number(o.total)||0), 0);
+  const full = allOrders.filter(o => o.tiffin==='Full Tiffin').reduce((s,o) => s + (Number(o.qty)||0), 0);
+  const half = allOrders.filter(o => o.tiffin==='Half Tiffin').reduce((s,o) => s + (Number(o.qty)||0), 0);
   const days = [...new Set(allOrders.map(o => o.date))].length;
-  document.getElementById('rDate').textContent = getTodayLabel();
+  const month = getMonthLabel();
+
+  document.getElementById('reportTitle').textContent = `Office Tiffin Report — ${month}`;
+  document.getElementById('rDate').textContent   = getTodayLabel();
   document.getElementById('rOrders').textContent = allOrders.length;
-  document.getElementById('rRev').textContent = `₹${tot}`;
-  document.getElementById('rFull').textContent = full;
-  document.getElementById('rHalf').textContent = half;
-  document.getElementById('rAvg').textContent = days ? `₹${Math.round(tot / days)}` : '₹0';
-  const empBreak = getEmps().map(e => {
+  document.getElementById('rRev').textContent    = `₹${tot}`;
+  document.getElementById('rFull').textContent   = full;
+  document.getElementById('rHalf').textContent   = half;
+  document.getElementById('rAvg').textContent    = days ? `₹${Math.round(tot/days)}` : '₹0';
+
+  const empBreak = cachedEmps.map(e => {
     const mine = allOrders.filter(o => o.emp === e.name);
-    return { name: e.name, orders: mine.length, total: mine.reduce((s, o) => s + (Number(o.total) || 0), 0) };
+    return { name: e.name, orders: mine.length, total: mine.reduce((s,o) => s + (Number(o.total)||0), 0) };
   }).filter(e => e.orders > 0);
+
   document.getElementById('rEmpBreak').innerHTML = empBreak.map(e =>
     `<div class="repRow"><span class="rn">${e.name}</span><span class="rv">${e.orders} orders · ₹${e.total}</span></div>`
   ).join('') || '<div class="empty">No orders yet</div>';
+
   const byDay = {};
-  allOrders.forEach(o => { byDay[o.date] = (byDay[o.date] || 0) + (Number(o.total) || 0); });
-  document.getElementById('rDaily').innerHTML = Object.entries(byDay).sort((a, b) => b[0].localeCompare(a[0])).map(([d, v]) =>
-    `<div class="repRow"><span class="rn">${d}</span><span class="rv">₹${v}</span></div>`
-  ).join('') || '<div class="empty">No orders yet</div>';
+  allOrders.forEach(o => { byDay[o.date] = (byDay[o.date]||0) + (Number(o.total)||0); });
+  document.getElementById('rDaily').innerHTML = Object.entries(byDay)
+    .sort((a,b) => b[0].localeCompare(a[0]))
+    .map(([d,v]) => `<div class="repRow"><span class="rn">${d}</span><span class="rv">₹${v}</span></div>`)
+    .join('') || '<div class="empty">No orders yet</div>';
 }
 
 function printReport() {
   renderReport();
-  const w = window.open('', '_blank');
-  const tot = allOrders.reduce((s, o) => s + (Number(o.total) || 0), 0);
-  const full = allOrders.filter(o => o.tiffin === 'Full Tiffin').reduce((s, o) => s + (Number(o.qty) || 0), 0);
-  const half = allOrders.filter(o => o.tiffin === 'Half Tiffin').reduce((s, o) => s + (Number(o.qty) || 0), 0);
-  const days = [...new Set(allOrders.map(o => o.date))].length;
-  const empBreak = getEmps().map(e => {
+  const month    = getMonthLabel();
+  const tot      = allOrders.reduce((s,o) => s + (Number(o.total)||0), 0);
+  const full     = allOrders.filter(o => o.tiffin==='Full Tiffin').reduce((s,o) => s + (Number(o.qty)||0), 0);
+  const half     = allOrders.filter(o => o.tiffin==='Half Tiffin').reduce((s,o) => s + (Number(o.qty)||0), 0);
+  const days     = [...new Set(allOrders.map(o => o.date))].length;
+  const empBreak = cachedEmps.map(e => {
     const mine = allOrders.filter(o => o.emp === e.name);
-    return { name: e.name, orders: mine.length, total: mine.reduce((s, o) => s + (Number(o.total) || 0), 0) };
+    return { name: e.name, orders: mine.length, total: mine.reduce((s,o) => s + (Number(o.total)||0), 0) };
   }).filter(e => e.orders > 0);
   const byDay = {};
-  allOrders.forEach(o => { byDay[o.date] = (byDay[o.date] || 0) + (Number(o.total) || 0); });
+  allOrders.forEach(o => { byDay[o.date] = (byDay[o.date]||0) + (Number(o.total)||0); });
+
+  const w = window.open('', '_blank');
   w.document.write(`<!DOCTYPE html><html><head><title>Tiffin Report</title>
-  <style>
-    body{font-family:Arial,sans-serif;padding:24px;color:#1a1a2e;font-size:13px}
-    h1{color:#1E3A5F;border-bottom:2px solid #1E3A5F;padding-bottom:8px}
-    h2{color:#2E86AB;font-size:13px;text-transform:uppercase;letter-spacing:.05em;margin-top:20px}
-    .row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #eee}
-    .val{font-weight:bold;color:#1E3A5F}
-    @media print{body{padding:0}}
-  </style></head><body>
-  <h1>Office Tiffin Report — May 2026</h1>
+  <style>body{font-family:Arial,sans-serif;padding:24px;color:#1a1a2e;font-size:13px}h1{color:#1E3A5F;border-bottom:2px solid #1E3A5F;padding-bottom:8px}h2{color:#2E86AB;font-size:13px;text-transform:uppercase;letter-spacing:.05em;margin-top:20px}.row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #eee}.val{font-weight:bold;color:#1E3A5F}@media print{body{padding:0}}</style>
+  </head><body>
+  <h1>Office Tiffin Report — ${month}</h1>
   <h2>Summary</h2>
   <div class="row"><span>Generated on</span><span class="val">${getTodayLabel()}</span></div>
   <div class="row"><span>Total orders</span><span class="val">${allOrders.length}</span></div>
   <div class="row"><span>Total revenue</span><span class="val">₹${tot}</span></div>
   <div class="row"><span>Full tiffins</span><span class="val">${full}</span></div>
   <div class="row"><span>Half tiffins</span><span class="val">${half}</span></div>
-  <div class="row"><span>Avg per day</span><span class="val">${days ? '₹' + Math.round(tot / days) : '₹0'}</span></div>
+  <div class="row"><span>Avg per day</span><span class="val">${days?'₹'+Math.round(tot/days):'₹0'}</span></div>
   <h2>Employee-wise</h2>
-  ${empBreak.map(e => `<div class="row"><span>${e.name}</span><span class="val">${e.orders} orders · ₹${e.total}</span></div>`).join('')}
+  ${empBreak.map(e=>`<div class="row"><span>${e.name}</span><span class="val">${e.orders} orders · ₹${e.total}</span></div>`).join('')}
   <h2>Daily totals</h2>
-  ${Object.entries(byDay).sort((a, b) => b[0].localeCompare(a[0])).map(([d, v]) => `<div class="row"><span>${d}</span><span class="val">₹${v}</span></div>`).join('')}
+  ${Object.entries(byDay).sort((a,b)=>b[0].localeCompare(a[0])).map(([d,v])=>`<div class="row"><span>${d}</span><span class="val">₹${v}</span></div>`).join('')}
   </body></html>`);
   w.document.close();
   setTimeout(() => w.print(), 500);
@@ -1047,33 +1199,34 @@ function printReport() {
 
 function exportCSV() {
   if (!allOrders.length) { toast('No orders to export'); return; }
-  const rows = ['Date,Employee,Tiffin Type,Qty,Unit Price,Total,Time',
-    ...allOrders.map(o => `${o.date},${o.emp},${o.tiffin},${o.qty},${o.unitPrice},${o.total},${o.time || ''}`)
+  const month = getMonthLabel().replace(' ','_');
+  const rows  = ['Date,Employee,Tiffin Type,Qty,Unit Price,Total,Time',
+    ...allOrders.map(o => `${o.date},${o.emp},${o.tiffin},${o.qty},${o.unitPrice},${o.total},${o.time||''}`)
   ];
-  const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
-  const a = document.createElement('a');
+  const blob = new Blob([rows.join('\n')], { type:'text/csv' });
+  const a    = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'TiffinOrders_May2026.csv';
+  a.download = `TiffinOrders_${month}.csv`;
   a.click();
-  toast('CSV downloaded! ✓');
+  toast('✓ CSV downloaded!');
 }
 
 function copyReport() {
   renderReport();
-  const tot = allOrders.reduce((s, o) => s + (Number(o.total) || 0), 0);
-  const full = allOrders.filter(o => o.tiffin === 'Full Tiffin').reduce((s, o) => s + (Number(o.qty) || 0), 0);
-  const half = allOrders.filter(o => o.tiffin === 'Half Tiffin').reduce((s, o) => s + (Number(o.qty) || 0), 0);
-  const text = `OFFICE TIFFIN REPORT — MAY 2026\nDate: ${getTodayLabel()}\nTotal Orders: ${allOrders.length}\nTotal Revenue: ₹${tot}\nFull Tiffins: ${full}\nHalf Tiffins: ${half}`;
+  const tot  = allOrders.reduce((s,o) => s + (Number(o.total)||0), 0);
+  const full = allOrders.filter(o => o.tiffin==='Full Tiffin').reduce((s,o) => s + (Number(o.qty)||0), 0);
+  const half = allOrders.filter(o => o.tiffin==='Half Tiffin').reduce((s,o) => s + (Number(o.qty)||0), 0);
+  const text = `OFFICE TIFFIN REPORT — ${getMonthLabel().toUpperCase()}\nDate: ${getTodayLabel()}\nTotal Orders: ${allOrders.length}\nTotal Revenue: ₹${tot}\nFull Tiffins: ${full}\nHalf Tiffins: ${half}`;
   navigator.clipboard.writeText(text)
-    .then(() => toast('Report copied to clipboard ✓'))
+    .then(() => toast('✓ Report copied to clipboard'))
     .catch(() => toast('Use Print instead'));
 }
 
 /* ════════════════════════════════════════════
    INIT
    ════════════════════════════════════════════ */
-populateLogin();
 showPage('pgLogin');
+populateLogin();
 </script>
 </body>
 </html>
