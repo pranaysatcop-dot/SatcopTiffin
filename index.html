@@ -581,30 +581,36 @@ function getTodayDay() {
 function isSunday() { return new Date().getDay() === 0; }
 
 /* ════════════════════════════════════════════
-   CORE API — all calls go through here
+   CORE API — JSONP to bypass Apps Script CORS
    ════════════════════════════════════════════ */
 function apiCall(params) {
   return new Promise((resolve, reject) => {
-    const cbName = 'cb_' + Date.now();
+    const cbName = 'cb_' + Math.random().toString(36).slice(2);
     const script = document.createElement('script');
-    
-    params.callback = cbName;
-    const url = API_URL + '?' + new URLSearchParams(params).toString();
+    const timeout = setTimeout(() => {
+      cleanup();
+      reject(new Error('Request timed out'));
+    }, 10000);
+
+    function cleanup() {
+      clearTimeout(timeout);
+      delete window[cbName];
+      if (script.parentNode) document.body.removeChild(script);
+    }
 
     window[cbName] = function(data) {
-      delete window[cbName];
-      document.body.removeChild(script);
+      cleanup();
       if (data && data.error) reject(new Error(data.error));
       else resolve(data);
     };
 
-    script.onerror = () => {
-      delete window[cbName];
-      document.body.removeChild(script);
-      reject(new Error('Network error'));
+    script.onerror = function() {
+      cleanup();
+      reject(new Error('Script load error'));
     };
 
-    script.src = url;
+    params.callback = cbName;
+    script.src = API_URL + '?' + new URLSearchParams(params).toString();
     document.body.appendChild(script);
   });
 }
