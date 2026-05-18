@@ -549,11 +549,11 @@ tr:hover td{background:#F8FAFC}
 
 <script>
 /* ════════════════════════════════════════════
-   CONFIG — paste your Apps Script URL here
+   CONFIG — SheetDB
    ════════════════════════════════════════════ */
-const API_URL  = "https://script.google.com/macros/s/AKfycbyksVkTEqVun2DvlHwYKoSWCBes5JQXHO_fbhedTr1fRwlwA3Ssh21dleVM9zfb6LfU/exec";
-const SHEET_ID = "1GRRxs7AWZkNL5XRERHYkNVbF-FqDdFsZrZrkmmoGWDE";
-const PRICES   = { full: 80, half: 50 };
+const SHEETDB   = "https://sheetdb.io/api/v1/0s0k6mj5gw5jr";
+const SHEET_ID  = "1GRRxs7AWZkNL5XRERHYkNVbF-FqDdFsZrZrkmmoGWDE";
+const PRICES    = { full: 80, half: 50 };
 const ADMIN_PIN = "0000";
 
 /* ════════════════════════════════════════════
@@ -562,7 +562,7 @@ const ADMIN_PIN = "0000";
 let curUser = null, curRole = null;
 let qty = 1, selTif = null;
 let allOrders = [];
-let cachedEmps = [];      // in-memory employee cache
+let cachedEmps = [];
 let empEditing = null, empDeleting = null;
 
 /* ════════════════════════════════════════════
@@ -581,70 +581,65 @@ function getTodayDay() {
 function isSunday() { return new Date().getDay() === 0; }
 
 /* ════════════════════════════════════════════
-   CORE API — JSONP to bypass Apps Script CORS
-   ════════════════════════════════════════════ */
-function apiCall(params) {
-  return new Promise((resolve, reject) => {
-    const cbName = 'cb_' + Math.random().toString(36).slice(2);
-    const script = document.createElement('script');
-    const timeout = setTimeout(() => {
-      cleanup();
-      reject(new Error('Request timed out'));
-    }, 10000);
-
-    function cleanup() {
-      clearTimeout(timeout);
-      delete window[cbName];
-      if (script.parentNode) document.body.removeChild(script);
-    }
-
-    window[cbName] = function(data) {
-      cleanup();
-      if (data && data.error) reject(new Error(data.error));
-      else resolve(data);
-    };
-
-    script.onerror = function() {
-      cleanup();
-      reject(new Error('Script load error'));
-    };
-
-    params.callback = cbName;
-    script.src = API_URL + '?' + new URLSearchParams(params).toString();
-    document.body.appendChild(script);
-  });
-}
-
-/* ════════════════════════════════════════════
-   ORDERS API
+   SHEETDB API — Orders (sheet: Orders)
    ════════════════════════════════════════════ */
 async function readSheet() {
-  const data = await apiCall({ action: 'read' });
+  const r = await fetch(SHEETDB + '?sheet=Orders');
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const data = await r.json();
   return Array.isArray(data) ? data : [];
 }
 
 async function appendRow(order) {
-  return await apiCall({
-    action: 'write',
-    data: encodeURIComponent(JSON.stringify(order))
+  const r = await fetch(SHEETDB + '?sheet=Orders', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ data: [order] })
   });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return await r.json();
 }
 
 /* ════════════════════════════════════════════
-   EMPLOYEES API — fetches from Google Sheet
+   SHEETDB API — Employees (sheet: Employees)
    ════════════════════════════════════════════ */
 async function fetchEmps() {
-  const data = await apiCall({ action: 'getEmployees' });
+  const r = await fetch(SHEETDB + '?sheet=Employees');
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const data = await r.json();
   cachedEmps = Array.isArray(data) ? data : [];
   return cachedEmps;
 }
 
-async function saveEmps(emps) {
-  cachedEmps = emps;
-  return await apiCall({
-    action: 'saveEmployees',
-    data: encodeURIComponent(JSON.stringify(emps))
+async function saveEmpAdd(emp) {
+  // Add single employee row
+  const r = await fetch(SHEETDB + '?sheet=Employees', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ data: [emp] })
   });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return await r.json();
+}
+
+async function saveEmpUpdate(oldName, emp) {
+  // Update employee by name
+  const r = await fetch(SHEETDB + '/name/' + encodeURIComponent(oldName) + '?sheet=Employees', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ data: emp })
+  });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return await r.json();
+}
+
+async function saveEmpDelete(name) {
+  // Delete employee by name
+  const r = await fetch(SHEETDB + '/name/' + encodeURIComponent(name) + '?sheet=Employees', {
+    method: 'DELETE'
+  });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return await r.json();
 }
 
 /* ════════════════════════════════════════════
@@ -1043,8 +1038,8 @@ async function addEmployee() {
     if (emps.find(e => e.name.toLowerCase() === name.toLowerCase())) {
       toast('Employee already exists'); btn.disabled = false; btn.textContent = 'Add Employee'; return;
     }
-    emps.push({ name, pin, role });
-    await saveEmps(emps);
+    await saveEmpAdd({ name, pin, role });
+    cachedEmps.push({ name, pin, role });
     document.getElementById('newName').value = '';
     document.getElementById('newPin').value = '';
     toggleAddForm();
@@ -1075,9 +1070,9 @@ async function confirmEdit() {
   btn.disabled = true; btn.textContent = '⏳ Saving...';
 
   try {
-    const emps = cachedEmps.slice();
-    emps[empEditing] = { name, pin, role };
-    await saveEmps(emps);
+    const oldName = cachedEmps[empEditing].name;
+    await saveEmpUpdate(oldName, { name, pin, role });
+    cachedEmps[empEditing] = { name, pin, role };
     closeModal();
     await renderEmpList();
     toast('✓ Employee updated in sheet');
@@ -1098,9 +1093,9 @@ async function confirmDelete() {
   btn.disabled = true; btn.textContent = '⏳ Removing...';
 
   try {
-    const emps = cachedEmps.slice();
-    emps.splice(empDeleting, 1);
-    await saveEmps(emps);
+    const name = cachedEmps[empDeleting].name;
+    await saveEmpDelete(name);
+    cachedEmps.splice(empDeleting, 1);
     closeModal();
     await renderEmpList();
     toast('✓ Employee removed from sheet');
